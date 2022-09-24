@@ -1,0 +1,1081 @@
+<!doctype html><!--[if lt IE 7]> <html class="no-js lt-ie9 lt-ie8 lt-ie7" lang="en" > <![endif]--><!--[if IE 7]>    <html class="no-js lt-ie9 lt-ie8" lang="en" >        <![endif]--><!--[if IE 8]>    <html class="no-js lt-ie9" lang="en" >               <![endif]--><!--[if gt IE 8]><!--><html class="no-js" lang="en"><!--<![endif]--><head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="author" content="imaginationtech">
+    <meta name="description" content="This article introduces the hybrid rendering demo running on an early version of our PowerVR Ray Tracing IP, as shown at GDC 2014.">
+    <meta name="generator" content="HubSpot">
+    <title>Implementing hybrid ray tracing in a rasterized game engine - Imagination</title>
+    <link rel="shortcut icon" href="https://blog.imaginationtech.com/hubfs/cropped-favicon.webp">
+    
+
+    <script src="/hs/hsstatic/jquery-libs/static-1.1/jquery/jquery-1.7.1.js"></script>
+<script>hsjQuery = window['jQuery'];</script>
+    <meta property="og:description" content="This article introduces the hybrid rendering demo running on an early version of our PowerVR Ray Tracing IP, as shown at GDC 2014.">
+    <meta property="og:title" content="Implementing hybrid ray tracing in a rasterized game engine - Imagination">
+    <meta name="twitter:description" content="This article introduces the hybrid rendering demo running on an early version of our PowerVR Ray Tracing IP, as shown at GDC 2014.">
+    <meta name="twitter:title" content="Implementing hybrid ray tracing in a rasterized game engine - Imagination">
+
+    
+
+    
+    <style>
+a.cta_button{-moz-box-sizing:content-box !important;-webkit-box-sizing:content-box !important;box-sizing:content-box !important;vertical-align:middle}.hs-breadcrumb-menu{list-style-type:none;margin:0px 0px 0px 0px;padding:0px 0px 0px 0px}.hs-breadcrumb-menu-item{float:left;padding:10px 0px 10px 10px}.hs-breadcrumb-menu-divider:before{content:'›';padding-left:10px}.hs-featured-image-link{border:0}.hs-featured-image{float:right;margin:0 0 20px 20px;max-width:50%}@media (max-width: 568px){.hs-featured-image{float:none;margin:0;width:100%;max-width:100%}}.hs-screen-reader-text{clip:rect(1px, 1px, 1px, 1px);height:1px;overflow:hidden;position:absolute !important;width:1px}
+</style>
+
+<link rel="stylesheet" href="https://blog.imaginationtech.com/hs-fs/hub/2426966/hub_generated/module_assets/1575356844543/module_22623542926_Site_Search_-_Imagination_December2019.min.css">
+    
+
+    
+<!--  Added by GoogleAnalytics integration -->
+<script>
+var _hsp = window._hsp = window._hsp || [];
+_hsp.push(['addPrivacyConsentListener', function(consent) { if (consent.allowed || (consent.categories && consent.categories.analytics)) {
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  ga('create','UA-3749906-2','auto');
+  ga('send','pageview');
+}}]);
+</script>
+
+<!-- /Added by GoogleAnalytics integration -->
+
+<!--  Added by GoogleAnalytics4 integration -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-306557097"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+
+if (!window._hsGoogleConsentRunOnce) {
+  window._hsGoogleConsentRunOnce = true;
+
+  gtag('consent', 'default', {
+    'ad_storage': 'denied',
+    'analytics_storage': 'denied'
+  });
+
+  var _hsp = window._hsp = window._hsp || [];
+
+  _hsp.push(['addPrivacyConsentListener', function(consent){
+    var hasAnalyticsConsent = consent && (consent.allowed || (consent.categories && consent.categories.analytics));
+    var hasAdsConsent = consent && (consent.allowed || (consent.categories && consent.categories.advertisement));
+
+    gtag('consent', 'update', {
+      'ad_storage': hasAdsConsent ? 'granted' : 'denied',
+      'analytics_storage': hasAnalyticsConsent ? 'granted' : 'denied'
+    });
+  }]);
+}
+
+gtag('js', new Date());
+gtag('set', 'developer_id.dZTQ1Zm', true);
+gtag('config', 'G-306557097');
+</script>
+
+<!-- /Added by GoogleAnalytics4 integration -->
+
+<!--  Added by GoogleTagManager integration -->
+<script>
+var _hsp = window._hsp = window._hsp || [];
+
+var hsLoadGtm = function loadGtm() {
+    if(window._hsGtmLoadOnce) {
+      return;
+    }
+
+    (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-W9FGS8Q');
+
+    window._hsGtmLoadOnce = true;
+};
+
+var useGoogleConsentMode = true;
+
+if (!useGoogleConsentMode){
+    _hsp.push(['addPrivacyConsentListener', function(consent){
+      if(consent.allowed || (consent.categories && consent.categories.analytics)){
+        hsLoadGtm();
+      }
+  }]);
+} else{
+
+    hsLoadGtm();
+
+    if(!window._hsGoogleConsentRunOnce){
+      window._hsGoogleConsentRunOnce=true;
+
+      window.dataLayer=window.dataLayer||[];
+      function gtag(){dataLayer.push(arguments);}
+
+      gtag('consent','default',{
+        'ad_storage':'denied',
+        'analytics_storage':'denied'
+      });
+
+      gtag('set','developer_id.dZTQ1Zm',true);
+
+      _hsp.push(['addPrivacyConsentListener',function(consent){
+      var hasAnalyticsConsent=consent&&(consent.allowed||(consent.categories&&consent.categories.analytics));
+      var hasAdsConsent=consent&&(consent.allowed||(consent.categories&&consent.categories.advertisement));
+
+      gtag('consent','update',{
+        'ad_storage':hasAdsConsent?'granted':'denied',
+        'analytics_storage':hasAnalyticsConsent?'granted':'denied'
+      });
+    }]);
+  }
+}
+</script>
+
+<!-- /Added by GoogleTagManager integration -->
+
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link rel="amphtml" href="https://blog.imaginationtech.com/implementing-hybrid-ray-tracing-rasterized-game-engine/?hs_amp=true">
+
+<meta property="og:image" content="https://blog.imaginationtech.com/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-3-1-1.jpg#keepProtocol">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="718">
+
+<meta name="twitter:image" content="https://blog.imaginationtech.com/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-3-1-1.jpg#keepProtocol">
+
+
+<meta property="og:url" content="https://blog.imaginationtech.com/implementing-hybrid-ray-tracing-rasterized-game-engine/">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="canonical" href="https://blog.imaginationtech.com/implementing-hybrid-ray-tracing-rasterized-game-engine/">
+
+<meta property="og:type" content="article">
+<link rel="alternate" type="application/rss+xml" href="https://blog.imaginationtech.com/rss.xml">
+<meta name="twitter:domain" content="blog.imaginationtech.com">
+<meta name="twitter:site" content="@ImaginationTech">
+<script src="//platform.linkedin.com/in.js" type="text/javascript">
+    lang: en_US
+</script>
+
+<meta http-equiv="content-language" content="en">
+<link rel="stylesheet" href="//cdn2.hubspot.net/hub/7052064/hub_generated/template_assets/1663352855385/hubspot/hubspot_default/shared/responsive/layout.min.css">
+
+
+<link rel="stylesheet" href="https://blog.imaginationtech.com/hs-fs/hub/2426966/hub_generated/template_assets/22484759262/1582185155271/Imagination_December2019_Theme/Coded_Files/Imagination_December2019-style.min.css">
+
+
+
+
+</head>
+<body class="blog   hs-content-id-63150111846 hs-blog-post hs-blog-id-20509583005" style="">
+<!--  Added by GoogleTagManager integration -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-W9FGS8Q" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+
+<!-- /Added by GoogleTagManager integration -->
+
+    <div class="header-container-wrapper">
+    <div class="header-container container-fluid">
+
+<div class="row-fluid-wrapper row-depth-1 row-number-1 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-global_group " style="" data-widget-type="global_group" data-x="0" data-w="12">
+<div class="" data-global-widget-path="generated_global_groups/22484959253.html"><div class="row-fluid-wrapper row-depth-1 row-number-1 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-cell cm-header-wrapper" style="" data-widget-type="cell" data-x="0" data-w="12">
+
+<div class="row-fluid-wrapper row-depth-1 row-number-2 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-cell page-center" style="" data-widget-type="cell" data-x="0" data-w="12">
+
+<div class="row-fluid-wrapper row-depth-1 row-number-3 ">
+<div class="row-fluid ">
+<div class="span4 widget-span widget-type-cell cm-header-logo-wrapper" style="" data-widget-type="cell" data-x="0" data-w="4">
+
+<div class="row-fluid-wrapper row-depth-1 row-number-4 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-custom_widget " style="" data-widget-type="custom_widget" data-x="0" data-w="12">
+<div id="hs_cos_wrapper_module_1575277431850177" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_module" style="" data-hs-cos-general-type="widget" data-hs-cos-type="module"><div class="cm-header-logo">
+  <a href="https://www.imaginationtech.com/">
+    <img class="logo-white" src="https://blog.imaginationtech.com/hubfs/Imagination_December2019%20Theme/Images/Header%20Logo%20White.svg" alt="Imagination">
+    <img class="logo-black" src="https://blog.imaginationtech.com/hubfs/Imagination_December2019%20Theme/Images/Header%20Logo%20Black.svg" alt="Imagination">
+  </a>
+</div></div>
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+</div><!--end widget-span -->
+<div class="span8 widget-span widget-type-cell cm-navigation-wrapper" style="" data-widget-type="cell" data-x="4" data-w="8">
+
+<div class="row-fluid-wrapper row-depth-1 row-number-5 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-custom_widget custom-menu-primary hide-mobile" style="" data-widget-type="custom_widget" data-x="0" data-w="12">
+<div id="hs_cos_wrapper_module_151811933987828" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_module widget-type-menu" style="" data-hs-cos-general-type="widget" data-hs-cos-type="module">
+<span id="hs_cos_wrapper_module_151811933987828_" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_menu" style="" data-hs-cos-general-type="widget" data-hs-cos-type="menu"><div id="hs_menu_wrapper_module_151811933987828_" class="hs-menu-wrapper active-branch flyouts hs-menu-flow-horizontal" role="navigation" data-sitemap-name="default" data-menu-id="22493005089" aria-label="Navigation Menu">
+ <ul role="menu">
+  <li class="hs-menu-item hs-menu-depth-1 hs-item-has-children" role="none"><a href="https://www.imaginationtech.com/products/" aria-haspopup="true" aria-expanded="false" role="menuitem">Products &amp; Solutions</a>
+   <ul role="menu" class="hs-menu-children-wrapper">
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/gpu/" role="menuitem">GPU</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/cpu/" role="menuitem">CPU</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/ai/" role="menuitem">AI</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://imaginationtech.com/products/ethernet/" role="menuitem">Ethernet</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://imaginationtech.com/products/ray-tracing/" role="menuitem">Ray Tracing</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://imaginationtech.com/products/catalog/" role="menuitem">Product Finder</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/automotive/" role="menuitem">Automotive</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/consumer/" role="menuitem">Consumer</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/desktop/" role="menuitem">Desktop</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/mobile/" role="menuitem">Mobile</a></li>
+   </ul></li>
+  <li class="hs-menu-item hs-menu-depth-1" role="none"><a href="https://developer.imaginationtech.com/" role="menuitem" target="_blank" rel="noopener">Developers</a></li>
+  <li class="hs-menu-item hs-menu-depth-1 hs-item-has-children" role="none"><a href="https://www.imaginationtech.com/news/" aria-haspopup="true" aria-expanded="false" role="menuitem">News &amp; Insights</a>
+   <ul role="menu" class="hs-menu-children-wrapper">
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://imaginationtech.com/news/?query=news&amp;filter-language=english&amp;filter-search=" role="menuitem">Newsroom</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://imaginationtech.com/resources/?query=resource&amp;filter-language=english&amp;filter-search=" role="menuitem">Resources Hub</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://blog.imaginationtech.com/" role="menuitem">Blog</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://imaginationtech.com/events/" role="menuitem">Events &amp; Webinars</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://university.imgtec.com/" role="menuitem" target="_blank" rel="noopener">University Programme</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="http://imgtec.eetrend.com/" role="menuitem" target="_blank" rel="noopener">中文社区</a></li>
+   </ul></li>
+  <li class="hs-menu-item hs-menu-depth-1 hs-item-has-children" role="none"><a href="https://www.imaginationtech.com/about/" aria-haspopup="true" aria-expanded="false" role="menuitem">Company</a>
+   <ul role="menu" class="hs-menu-children-wrapper">
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/about/" role="menuitem">About Us</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/why-work-with-us/" role="menuitem">Why Work With Us</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/leadership/" role="menuitem">Leadership Team</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/contact-us/" role="menuitem">Contact Us</a></li>
+   </ul></li>
+  <li class="hs-menu-item hs-menu-depth-1 hs-item-has-children" role="none"><a href="https://www.imaginationtech.com/careers/" aria-haspopup="true" aria-expanded="false" role="menuitem">Careers</a>
+   <ul role="menu" class="hs-menu-children-wrapper">
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://imaginationtech.com/careers/" role="menuitem">Work at Imagination</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://imaginationtech.com/careers/vacancies/" role="menuitem">Search Jobs</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/careers/hybrid-working/" role="menuitem">Hybrid Working</a></li>
+   </ul></li>
+ </ul>
+</div></span></div>
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+<div class="row-fluid-wrapper row-depth-1 row-number-6 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-custom_widget custom-menu-primary show-mobile" style="" data-widget-type="custom_widget" data-x="0" data-w="12">
+<div id="hs_cos_wrapper_module_157534958338311" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_module widget-type-menu" style="" data-hs-cos-general-type="widget" data-hs-cos-type="module">
+<span id="hs_cos_wrapper_module_157534958338311_" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_menu" style="" data-hs-cos-general-type="widget" data-hs-cos-type="menu"><div id="hs_menu_wrapper_module_157534958338311_" class="hs-menu-wrapper active-branch flyouts hs-menu-flow-horizontal" role="navigation" data-sitemap-name="default" data-menu-id="22493005089" aria-label="Navigation Menu">
+ <ul role="menu">
+  <li class="hs-menu-item hs-menu-depth-1 hs-item-has-children" role="none"><a href="https://www.imaginationtech.com/products/" aria-haspopup="true" aria-expanded="false" role="menuitem">Products &amp; Solutions</a>
+   <ul role="menu" class="hs-menu-children-wrapper">
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/gpu/" role="menuitem">GPU</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/cpu/" role="menuitem">CPU</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/ai/" role="menuitem">AI</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://imaginationtech.com/products/ethernet/" role="menuitem">Ethernet</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://imaginationtech.com/products/ray-tracing/" role="menuitem">Ray Tracing</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://imaginationtech.com/products/catalog/" role="menuitem">Product Finder</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/automotive/" role="menuitem">Automotive</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/consumer/" role="menuitem">Consumer</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/desktop/" role="menuitem">Desktop</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/mobile/" role="menuitem">Mobile</a></li>
+   </ul></li>
+  <li class="hs-menu-item hs-menu-depth-1" role="none"><a href="https://developer.imaginationtech.com/" role="menuitem" target="_blank" rel="noopener">Developers</a></li>
+  <li class="hs-menu-item hs-menu-depth-1 hs-item-has-children" role="none"><a href="https://www.imaginationtech.com/news/" aria-haspopup="true" aria-expanded="false" role="menuitem">News &amp; Insights</a>
+   <ul role="menu" class="hs-menu-children-wrapper">
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://imaginationtech.com/news/?query=news&amp;filter-language=english&amp;filter-search=" role="menuitem">Newsroom</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://imaginationtech.com/resources/?query=resource&amp;filter-language=english&amp;filter-search=" role="menuitem">Resources Hub</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://blog.imaginationtech.com/" role="menuitem">Blog</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://imaginationtech.com/events/" role="menuitem">Events &amp; Webinars</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://university.imgtec.com/" role="menuitem" target="_blank" rel="noopener">University Programme</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="http://imgtec.eetrend.com/" role="menuitem" target="_blank" rel="noopener">中文社区</a></li>
+   </ul></li>
+  <li class="hs-menu-item hs-menu-depth-1 hs-item-has-children" role="none"><a href="https://www.imaginationtech.com/about/" aria-haspopup="true" aria-expanded="false" role="menuitem">Company</a>
+   <ul role="menu" class="hs-menu-children-wrapper">
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/about/" role="menuitem">About Us</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/why-work-with-us/" role="menuitem">Why Work With Us</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/leadership/" role="menuitem">Leadership Team</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/contact-us/" role="menuitem">Contact Us</a></li>
+   </ul></li>
+  <li class="hs-menu-item hs-menu-depth-1 hs-item-has-children" role="none"><a href="https://www.imaginationtech.com/careers/" aria-haspopup="true" aria-expanded="false" role="menuitem">Careers</a>
+   <ul role="menu" class="hs-menu-children-wrapper">
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://imaginationtech.com/careers/" role="menuitem">Work at Imagination</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://imaginationtech.com/careers/vacancies/" role="menuitem">Search Jobs</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/careers/hybrid-working/" role="menuitem">Hybrid Working</a></li>
+   </ul></li>
+ </ul>
+</div></span></div>
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+<div class="row-fluid-wrapper row-depth-1 row-number-7 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-custom_widget " style="" data-widget-type="custom_widget" data-x="0" data-w="12">
+<div id="hs_cos_wrapper_module_157535586140535" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_module" style="" data-hs-cos-general-type="widget" data-hs-cos-type="module">
+
+<div class="hs-search-field site-search"> 
+  <div class="search-container">
+    <span class="search-close">×</span>
+    <div class="hs-search-field__bar"> 
+      <form action="/hs-search-results">
+        <div class="cm-search-icon"></div>
+        
+        <input type="text" class="hs-search-field__input" name="term" autocomplete="off" aria-label="Search" placeholder="what are you looking for?">
+
+        
+        <input type="hidden" name="type" value="SITE_PAGE">
+        
+        
+        
+        <input type="hidden" name="type" value="BLOG_POST">
+        <input type="hidden" name="type" value="LISTING_PAGE">
+        
+        
+
+        <button type="submit" title="Save Current Search" class="search-btn"></button>
+      </form>
+    </div>
+    <ul class="hs-search-field__suggestions"></ul>
+  </div>
+</div></div>
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+</div>
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+<div class="row-fluid-wrapper row-depth-1 row-number-2 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-custom_widget " style="" data-widget-type="custom_widget" data-x="0" data-w="12">
+<div id="hs_cos_wrapper_module_1575365272575364" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_module" style="" data-hs-cos-general-type="widget" data-hs-cos-type="module">
+
+<div class="blog-post-banner" style="background-image: url(https://blog.imaginationtech.com/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-3-1-1.jpg);">
+  <div class="banner-background-overlay"></div>
+  <div class="bnr-container">
+    <div class="post-banner-content-wrapper">
+      <div class="post-banner-content">
+        
+        <p>
+          
+          <span><a class="topic-link" href="https://blog.imaginationtech.com/tag/ray-tracing">Ray tracing</a></span>
+          
+          <span><a class="topic-link" href="https://blog.imaginationtech.com/tag/developers">Developers</a></span>
+          
+        </p>
+        
+        <h2><span id="hs_cos_wrapper_name" class="hs_cos_wrapper hs_cos_wrapper_meta_field hs_cos_wrapper_type_text" style="" data-hs-cos-general-type="meta_field" data-hs-cos-type="text">Implementing hybrid ray tracing in a rasterized game engine</span></h2>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+    </div><!--end header -->
+</div><!--end header wrapper -->
+
+<div class="body-container-wrapper">
+    <div class="body-container container-fluid">
+
+<div class="row-fluid-wrapper row-depth-1 row-number-1 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-cell page-center content-wrapper" style="" data-widget-type="cell" data-x="0" data-w="12">
+
+<div class="row-fluid-wrapper row-depth-1 row-number-2 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-cell cm-blog-content-group" style="" data-widget-type="cell" data-x="0" data-w="12">
+
+<div class="row-fluid-wrapper row-depth-1 row-number-3 ">
+<div class="row-fluid ">
+<div class="span2 widget-span widget-type-cell cm-blog-social-share" style="" data-widget-type="cell" data-x="0" data-w="2">
+
+<div class="row-fluid-wrapper row-depth-1 row-number-4 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-custom_widget " style="" data-widget-type="custom_widget" data-x="0" data-w="12">
+<div id="hs_cos_wrapper_module_1575368232315347" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_module" style="" data-hs-cos-general-type="widget" data-hs-cos-type="module"><div class="sidebar-social-share">
+  <ul>
+    <li class="icon-linkedin">
+      <a href="javascript:;" title="Linkedin" onclick="window.open('http://www.linkedin.com/shareArticle?mini=true&amp;url=https://blog.imaginationtech.com/implementing-hybrid-ray-tracing-rasterized-game-engine/','Linkedin Share','width=600,height=600')">
+        <i class="fab fa-linkedin" aria-hidden="true"></i>
+      </a>
+    </li>
+
+    <li class="icon-twitter">
+      <a href="https://twitter.com/intent/tweet?url=https://blog.imaginationtech.com/implementing-hybrid-ray-tracing-rasterized-game-engine/&amp;text=Implementing%20hybrid%20ray%20tracing%20in%20a%20rasterized%20game%20engine">
+        <i class="fab fa-twitter" aria-hidden="true"></i>
+      </a>
+    </li>
+
+    <li class="icon-facebook">
+      <a href="javascript:;" title="facebook" onclick="window.open('http://www.facebook.com/sharer/sharer.php?u=https://blog.imaginationtech.com/implementing-hybrid-ray-tracing-rasterized-game-engine/','Facebook Share','width=600,height=600')">
+        <i class="fab fa-facebook" aria-hidden="true"></i>
+      </a>
+    </li>
+
+    <li class="icon-reddit">
+      <a href="javascript:;" title="reddit" onclick="window.open('https://www.reddit.com/login?dest=https://blog.imaginationtech.com/implementing-hybrid-ray-tracing-rasterized-game-engine/','reddit Share','width=600,height=600')">
+        <i class="fab fa-reddit" aria-hidden="true"></i>
+      </a>
+    </li>
+
+    <li class="icon-digg">
+      <a href="javascript:;" title="digg" onclick="window.open('https://digg.com/submit?url=https://blog.imaginationtech.com/implementing-hybrid-ray-tracing-rasterized-game-engine/','digg Share','width=600,height=600')">
+        <i class="fab fa-digg" aria-hidden="true"></i>
+      </a>
+    </li>
+
+    <li class="icon-envelope">
+      <a href="mailto:?subject=https://blog.imaginationtech.com/implementing-hybrid-ray-tracing-rasterized-game-engine/">
+        <i class="fas fa-envelope" aria-hidden="true"></i>
+      </a>
+    </li>
+  </ul>
+</div></div>
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+</div><!--end widget-span -->
+<div class="span6 widget-span widget-type-cell blog-content" style="" data-widget-type="cell" data-x="2" data-w="6">
+
+<div class="row-fluid-wrapper row-depth-1 row-number-5 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-custom_widget " style="" data-widget-type="custom_widget" data-x="0" data-w="12">
+<div id="hs_cos_wrapper_module_1523032069834331" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_module widget-type-blog_content" style="" data-hs-cos-general-type="widget" data-hs-cos-type="module">
+    <div class="blog-section">
+<div class="blog-post-wrapper cell-wrapper">
+<div class="section post-body">
+<div class="elementor-lazyloaded">
+<ul class="elementor-icon-list">
+<li class="elementor-icon">
+<span class="elementor-icon-date"> 06  May 2014 </span>
+</li>
+<li class="elementor-icon">
+<a href="https://blog.imaginationtech.com/author/imaginationtech">
+<span class="elementor-icon-author"> imaginationtech </span>
+</a>
+</li>
+<!--<li class="elementor-icon">
+<span class="elementor-post-avatar"> 
+<a href="https://blog.imaginationtech.com/implementing-hybrid-ray-tracing-rasterized-game-engine/#comments-listing"> No comments</a>
+</span>
+</li>-->
+</ul>
+</div>
+<span id="hs_cos_wrapper_post_body" class="hs_cos_wrapper hs_cos_wrapper_meta_field hs_cos_wrapper_type_rich_text" style="" data-hs-cos-general-type="meta_field" data-hs-cos-type="rich_text"><p>For the past month, many of you have been asking on social media or in the comments section of our blog for a video recording of our hybrid rendering demo. Since some of our readers have missed <a href="https://www.gdcvault.com/play/1020741/New-Techniques-Made-Possible-by" target="_blank" rel="noopener">our GDC 2014 sessions</a> or didn’t get a chance to drop by and see our PowerVR Ray Tracing demos running at our booth, I have asked my colleagues in <a href="https://www.imaginationtech.com/products/ray-tracing/" rel="noopener">the PowerVR Ray Tracing group</a> to put together short clips that present the work they’ve done to highlight some use cases for ray tracing.</p>
+<!--more-->
+<p>The first example we’ll be analysing today is the hybrid rendering demo. Before we begin, there is a caveat: please keep mind that this demo is running on a previous generation of the PowerVR Ray Tracing technology. The PowerVR GR6500 ray tracing GPU we’ve announced at GDC 2014 is designed to be integrated in a System-on-Chip and therefore can provide much better raw performance (a higher ray budget) and tighter/faster memory coupling while consuming lower power. Therefore the performance, framerate and resolution in the video isn’t representative of the PowerVR GR6500 or any other Wizard GPU.</p>
+<p>&nbsp;</p>
+<center><iframe style="margin: 0px auto; display: block;" xml="lang" src="//www.youtube.com/embed/LyH4yBm6Z9g" width="640" height="360" frameborder="0" allowfullscreen loading="lazy"></iframe></center>
+<p>&nbsp;</p>
+<p style="text-align: center;">The hybrid rendering demo running on our PowerVR Ray Tracing IP, as shown at GDC 2014</p>
+<p>For this ray tracing demo, we’ve started with an experimental version of <a href="https://unity3d.com/" target="_blank" rel="noopener">the Unity game engine</a> and implemented OpenRL support which enables us to use the G-Buffer from the rasterizer to initialize rays (see my recent Gamasutra article for more details). Then, the results of the ray tracing are used by Unity’s final lighting pass and fed right back into the game engine.</p>
+<p>Ray tracing alongside rasterization opens up many possibilities and enables effects that are either difficult or impossible to do without artefacts using raster techniques alone.</p>
+<h4>Hard and soft shadows</h4>
+<p>The first scene presents hard shadows. We are using the properties of the <a href="https://en.wikipedia.org/wiki/Deferred_shading" target="_blank" rel="noopener">G-Buffer</a> (world-space positions, normal and material IDs) to cast shadow rays. Zooming in on the tree in this scene reveals how every leaf is casting and receiving a very accurate shadow.</p>
+<p style="text-align: center;"><a href="https://f.hubspotusercontent10.net/hubfs/2426966/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-2.jpg"><img loading="lazy" class="aligncenter" src="https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-2.jpg?width=699&amp;height=392&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-2.jpg" alt="Hybrid ray tracing in a rasterized game engine - hard shadows (2)" width="699" height="392" srcset="https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-2.jpg?width=350&amp;height=196&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-2.jpg 350w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-2.jpg?width=699&amp;height=392&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-2.jpg 699w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-2.jpg?width=1049&amp;height=588&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-2.jpg 1049w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-2.jpg?width=1398&amp;height=784&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-2.jpg 1398w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-2.jpg?width=1748&amp;height=980&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-2.jpg 1748w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-2.jpg?width=2097&amp;height=1176&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-2.jpg 2097w" sizes="(max-width: 699px) 100vw, 699px"></a>Ray tracing can be used to generate very accurate hard shadows</p>
+<p>The second example in this scene introduces a similar situation where the complex geometry of the bridge will cause resolution issues when casting shadows in a traditional game engine. However, ray tracing doesn’t have any resolution problems because the rays are cast for each screen pixel. &nbsp;Developers do not have to worry about selecting the appropriate shadow map resolutions for various positions on the game level, and rigorously testing the game looking for artefacts. Ray traced shadows look realistic from afar (check out the beginning of the scene) and maintain fidelity all the way to the end. We can go as close to the wall as we want and we will never run out of shadow map resolution.</p>
+<p style="text-align: center;"><a href="https://f.hubspotusercontent10.net/hubfs/2426966/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-3.jpg"><img loading="lazy" class="aligncenter" src="https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-3.jpg?width=699&amp;height=392&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-3.jpg" alt="Hybrid ray tracing in a rasterized game engine - hard shadows (3)" width="699" height="392" srcset="https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-3.jpg?width=350&amp;height=196&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-3.jpg 350w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-3.jpg?width=699&amp;height=392&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-3.jpg 699w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-3.jpg?width=1049&amp;height=588&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-3.jpg 1049w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-3.jpg?width=1398&amp;height=784&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-3.jpg 1398w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-3.jpg?width=1748&amp;height=980&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-3.jpg 1748w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-3.jpg?width=2097&amp;height=1176&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows-3.jpg 2097w" sizes="(max-width: 699px) 100vw, 699px"></a>Ray traced shadows will not have resolution issues</p>
+<p>The next scene focuses on soft shadows. While hard shadows simulate sunlight on a clear day at noon, soft shadows appear when the light source has area (e.g. a lamp with a shade) or there is a medium to scatter the light between the light source and the scene (e.g. clouds). In our hybrid rendering example, by simply adding some random noise to the shadow ray directions, we can obtain the appearance of a cloudier day. This technique simulates the effect where the penumbra size is dependent on the distance between the occlude and the object receiving the shadow. In the video example, the head of the lamp has a very soft shadow while the base retains its hard edges, just like in real life. This would be very difficult to achieve using conventional techniques.</p>
+<p>Additionally, implementing ray traced shadows in game engines enables you to have many shadows casting lights because sampling decisions are made on a pixel-by-pixel basis. In the scene above, half of the pixels don’t need to sample the headlights of the car because those lights can be rejected by cheap cone-test. There is no need for a separate pass to handle each dynamic shadow casting light.</p>
+<h4>Reflections, refractions and transparency</h4>
+<p>Another use case for ray tracing is reflections, which can be handled in a similar fashion to shadows. Instead of directing the ray towards a known light source, we send the ray in the direction calculated by performing the mathematical reflect function between the vector from the viewpoint and the normal vector at the surface. Ray traced reflections have several advantages over raster techniques like reflection maps.&nbsp; Not only do they reflect dynamic objects without needing separate rendering passes, nearby objects and self-reflections are handled perfectly.</p>
+<p style="text-align: center;"><a href="https://f.hubspotusercontent10.net/hubfs/2426966/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-reflection-1.jpg"><img loading="lazy" class="aligncenter" src="https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-reflection-1.jpg?width=700&amp;height=393&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-reflection-1.jpg" alt="Hybrid ray tracing in a rasterized game engine - reflection" width="700" height="393" srcset="https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-reflection-1.jpg?width=350&amp;height=197&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-reflection-1.jpg 350w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-reflection-1.jpg?width=700&amp;height=393&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-reflection-1.jpg 700w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-reflection-1.jpg?width=1050&amp;height=590&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-reflection-1.jpg 1050w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-reflection-1.jpg?width=1400&amp;height=786&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-reflection-1.jpg 1400w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-reflection-1.jpg?width=1750&amp;height=983&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-reflection-1.jpg 1750w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-reflection-1.jpg?width=2100&amp;height=1179&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-reflection-1.jpg 2100w" sizes="(max-width: 700px) 100vw, 700px"></a>When using ray tracing in your game engine, reflections look crisp clear</p>
+<p>Additionally, transparency is also handled by casting rays. In our example, the windshield is tinting the rays and continuing them on to provide order-independent transparency. If you look closely at the car, you can notice we have implemented both transparency and reflections techniques for the windshield glass material; this is easy to do and produces a realistic effect where the trees are visible in the glass. The proportion of the blending between the reflection and the transparency takes into account the Fresnel term calculated from the viewing angle, and produces a convincing model of real life.</p>
+<p>Another example of ray traced transparency is the fence. It combines transparent objects with shadows to achieve an interesting visual effect. The fence is made of quads with an alpha texture applied to create the wire mesh. Because the rays respect the texture’s mip level, the shadow just looks like a faint tint from a reasonable distance. Once we get closer, the texture is starting to come out and the shadows gradually become more detailed, right up to the resolution limit of the wire mesh texture itself.</p>
+<p style="text-align: center;"><a href="https://f.hubspotusercontent10.net/hubfs/2426966/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows.jpg"><img loading="lazy" class="aligncenter" src="https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows.jpg?width=699&amp;height=393&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows.jpg" alt="Hybrid ray tracing in a rasterized game engine - hard shadows" width="699" height="393" srcset="https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows.jpg?width=350&amp;height=197&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows.jpg 350w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows.jpg?width=699&amp;height=393&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows.jpg 699w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows.jpg?width=1049&amp;height=590&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows.jpg 1049w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows.jpg?width=1398&amp;height=786&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows.jpg 1398w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows.jpg?width=1748&amp;height=983&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows.jpg 1748w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows.jpg?width=2097&amp;height=1179&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-hard-shadows.jpg 2097w" sizes="(max-width: 699px) 100vw, 699px"></a>In ray tracing, you can combine transparent objects with shadows</p>
+<p>A texture can also be used to tint a ray traced shadow for a quick and easy way to get perspective textures. In our example, this effect is noticeable on the pavement as the light cast from inside the diner is combined with the window decal to produce a coloured shadow.</p>
+<p>Finally, this wouldn’t be a ray tracing demo if we didn’t show some refraction. The open sign visible through the neck of the bottle or the bottle’s label is visible through the mug. We apply the refraction equation to bend the ray based on the difference of the index of refraction between glass and air, and then apply it again in reverse when the ray exits the material.</p>
+<p style="text-align: center;"><a href="https://f.hubspotusercontent10.net/hubfs/2426966/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-refraction.jpg"><img loading="lazy" class="aligncenter" src="https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-refraction.jpg?width=699&amp;height=524&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-refraction.jpg" alt="Hybrid ray tracing in a rasterized game engine - refraction" width="699" height="524" srcset="https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-refraction.jpg?width=350&amp;height=262&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-refraction.jpg 350w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-refraction.jpg?width=699&amp;height=524&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-refraction.jpg 699w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-refraction.jpg?width=1049&amp;height=786&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-refraction.jpg 1049w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-refraction.jpg?width=1398&amp;height=1048&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-refraction.jpg 1398w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-refraction.jpg?width=1748&amp;height=1310&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-refraction.jpg 1748w, https://blog.imaginationtech.com/hs-fs/hubfs/Imported_Blog_Media/Hybrid-ray-tracing-in-a-rasterized-game-engine-refraction.jpg?width=2097&amp;height=1572&amp;name=Hybrid-ray-tracing-in-a-rasterized-game-engine-refraction.jpg 2097w" sizes="(max-width: 699px) 100vw, 699px"></a>Refraction and glossy reflections</p>
+<p>Glossy reflections also work with this hybrid method. The normal map on this table means that the reflection rays are scattered a little bit. We can faintly see the reflection of the open sign and the beer label in the table, although it is too fuzzy to make it out clearly.</p>
+<h4>Final words</h4>
+<p>In conclusion, we’ve seen how adding just a few rays-per-pixel to a rasterized game engine can add a lot of effects that would be difficult or impossible to do with rasterization alone. Ray tracing can do a better job approximating the physical light transport phenomena, and using ray traced effects can avoid the artefacts of complicated raster techniques and often work out to be even be more efficient.</p>
+<p>Thank you for watching! I hope this article has come a little way towards quenching your thirst for ray tracing demos. If you have any suggestions or questions, please don’t hesitate to leave a comment in the box below.</p>
+<p>Come back to our blog for a second article where we focus on another example where PowerVR Ray Tracing is used inside the Unity 5 lightmap editor and make sure you follow us on Twitter (<a href="https://twitter.com/ImaginationTech" target="_blank" rel="noopener">@ImaginationTech</a><a href="https://twitter.com/powervrinsider" target="_blank" rel="noopener"></a>) for the latest news and announcements on PowerVR and ray tracing.</p></span>
+</div>
+<div class="cm-topic-section">
+<a class="topic-link" href="https://blog.imaginationtech.com/tag/ray-tracing">Ray tracing</a> 
+<a class="topic-link" href="https://blog.imaginationtech.com/tag/developers">Developers</a>
+</div>
+</div>
+</div>
+<!-- Optional: Blog Author Bio Box -->
+</div>
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+</div><!--end widget-span -->
+<div class="span4 widget-span widget-type-cell blog-sidebar" style="" data-widget-type="cell" data-x="8" data-w="4">
+
+<div class="row-fluid-wrapper row-depth-1 row-number-6 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-cell cm-sidebar-group" style="" data-widget-type="cell" data-x="0" data-w="12">
+
+<div class="row-fluid-wrapper row-depth-2 row-number-1 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-custom_widget " style="" data-widget-type="custom_widget" data-x="0" data-w="12">
+<div id="hs_cos_wrapper_module_1575351120251853" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_module" style="" data-hs-cos-general-type="widget" data-hs-cos-type="module"><div class="sidebar-content">
+  <h3>Blog Contact</h3>
+  <p>If you have any enquiries regarding any of our blog posts, please contact:</p>
+  <h5>United Kingdom</h5>
+  <p>
+    <a href="mailto:benny.har-even@imgtec.com">benny.har-even@imgtec.com</a>
+    <br> Tel: +44 (0)1923 260 511
+  </p>
+</div></div>
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+<div class="row-fluid-wrapper row-depth-2 row-number-2 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-custom_widget " style="" data-widget-type="custom_widget" data-x="0" data-w="12">
+<div id="hs_cos_wrapper_module_1575351322896862" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_module" style="" data-hs-cos-general-type="widget" data-hs-cos-type="module"><div class="sidebar-categories-wrapper">
+  <h3>Search by Tag</h3>
+  <label for="tag-select">Search for posts by tag.</label>
+  <div class="top-topics">
+    
+    <select id="tinynav1" class="tinynav tinynav1">
+      <option value="https://blog.imaginationtech.com">Select a Tag</option>
+      
+      <option value="https://blog.imaginationtech.com/tag/developers">Developers</option>
+      
+      <option value="https://blog.imaginationtech.com/tag/gpu">GPU</option>
+      
+      <option value="https://blog.imaginationtech.com/tag/automotive">Automotive</option>
+      
+      <option value="https://blog.imaginationtech.com/tag/ai">AI</option>
+      
+      <option value="https://blog.imaginationtech.com/tag/mobile">Mobile</option>
+      
+      <option value="https://blog.imaginationtech.com/tag/ray-tracing">Ray tracing</option>
+      
+      <option value="https://blog.imaginationtech.com/tag/women-in-tech">Women in Tech</option>
+      
+      <option value="https://blog.imaginationtech.com/tag/company">Company</option>
+      
+      <option value="https://blog.imaginationtech.com/tag/ar">AR</option>
+      
+      <option value="https://blog.imaginationtech.com/tag/interviews">Interviews</option>
+      
+    </select>
+  </div>
+</div></div>
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+<div class="row-fluid-wrapper row-depth-2 row-number-3 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-custom_widget " style="" data-widget-type="custom_widget" data-x="0" data-w="12">
+<div id="hs_cos_wrapper_module_1575454331129231" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_module" style="" data-hs-cos-general-type="widget" data-hs-cos-type="module"><div class="sidebar-categories-wrapper">
+  <h3>Search by Author</h3>
+  <label for="tag-select">Search for posts by one of our authors.</label>
+  <div class="top-topics">
+    
+    <select id="tinynav2" class="tinynav tinynav1">
+      <option value="https://blog.imaginationtech.com">Select an Author</option>
+      
+      <option value="https://blog.imaginationtech.com/author/ada-lu">Ada Lu</option>
+      
+      <option value="https://blog.imaginationtech.com/author/alex-pim">Alex Pim</option>
+      
+      <option value="https://blog.imaginationtech.com/author/andrew-garrard">Andrew Garrard</option>
+      
+      <option value="https://blog.imaginationtech.com/author/benjamin-anuworakarn">Benjamin Anuworakarn</option>
+      
+      <option value="https://blog.imaginationtech.com/author/benny-har-even">Benny Har-Even</option>
+      
+      <option value="https://blog.imaginationtech.com/author/bryce-johnstone">Bryce Johnstone</option>
+      
+      <option value="https://blog.imaginationtech.com/author/david-harold">David Harold</option>
+      
+      <option value="https://blog.imaginationtech.com/author/imaginationtech">imaginationtech</option>
+      
+      <option value="https://blog.imaginationtech.com/author/james-imber">James Imber</option>
+      
+      <option value="https://blog.imaginationtech.com/author/jesus-garza">Jesus Garza</option>
+      
+      <option value="https://blog.imaginationtech.com/author/jim-wallace">Jim Wallace</option>
+      
+      <option value="https://blog.imaginationtech.com/author/jo-jones">Jo Jones</option>
+      
+      <option value="https://blog.imaginationtech.com/author/kristof-beets">Kristof Beets</option>
+      
+      <option value="https://blog.imaginationtech.com/author/marc-canel">Marc Canel</option>
+      
+      <option value="https://blog.imaginationtech.com/author/mathieu-einig">Mathieu Einig</option>
+      
+      <option value="https://blog.imaginationtech.com/author/robert-owen">Robert Owen</option>
+      
+      <option value="https://blog.imaginationtech.com/author/robin-britton">Robin Britton</option>
+      
+      <option value="https://blog.imaginationtech.com/author/salvatore">Salvatore</option>
+      
+      <option value="https://blog.imaginationtech.com/author/simon-beresford-wylie">Simon Beresford-Wylie</option>
+      
+      <option value="https://blog.imaginationtech.com/author/szabolcs-csefalvay">Szabolcs Csefalvay</option>
+      
+      <option value="https://blog.imaginationtech.com/author/tim-atherton">Tim Atherton</option>
+      
+      <option value="https://blog.imaginationtech.com/author/tim-mantora">Tim Mamtora</option>
+      
+      <option value="https://blog.imaginationtech.com/author/tristan-jones">Tristan Jones</option>
+      
+    </select>
+  </div>
+</div></div>
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+    </div><!--end body -->
+</div><!--end body wrapper -->
+
+<div class="footer-container-wrapper">
+    <div class="footer-container container-fluid">
+
+<div class="row-fluid-wrapper row-depth-1 row-number-1 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-cell cm-related-post" style="" data-widget-type="cell" data-x="0" data-w="12">
+
+<div class="row-fluid-wrapper row-depth-1 row-number-2 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-cell page-center" style="" data-widget-type="cell" data-x="0" data-w="12">
+
+<div class="row-fluid-wrapper row-depth-1 row-number-3 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-custom_widget " style="" data-widget-type="custom_widget" data-x="0" data-w="12">
+<div id="hs_cos_wrapper_module_15753538867312075" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_module" style="" data-hs-cos-general-type="widget" data-hs-cos-type="module"><div class="custom-related-outer-wrapper clearfix"> 
+  
+  <div class="related-post-title">
+    <h3>Related blog articles</h3>
+  </div>
+  <div class="related-post-item-wrapper"> 
+    <!-- Set the max number of related posts to be output to the page here -->
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    <div class="related-post-item clearfix"> 
+      <a class="elementor-post__thumbnail__link" href="https://blog.imaginationtech.com/gdc-expo-2022-view-from-the-floor">
+         
+        <div class="elementor-post__thumbnail elementor-fit-height">
+          <img src="https://2426966.fs1.hubspotusercontent-na1.net/hub/2426966/hubfs/image003.jpg?width=698&amp;name=image003.jpg" alt="GDC Expo 2022: view from the floor">
+        </div>
+        
+      </a>
+      <div class="related-post-content">
+        <h3 class="elementor-post__title">
+          <a href="https://blog.imaginationtech.com/gdc-expo-2022-view-from-the-floor">GDC Expo 2022: view from the floor</a>
+        </h3>
+        <div class="elementor-post__meta-data">
+          <span class="elementor-post-date"> April  4,  2022 </span>
+        </div>
+        <div class="elementor-post__excerpt">
+          <p>I’ve lost count of the number of times I’ve been to the Game Developer Conference (GDC) Expo over the years. 15? 20? I’m not sure. What I do know is I’vefalse</p>
+        </div>
+        <a class="elementor-post__read-more" href="https://blog.imaginationtech.com/gdc-expo-2022-view-from-the-floor"> Read More » </a>
+      </div>
+    </div>
+              
+    
+    
+    
+    <div class="related-post-item clearfix"> 
+      <a class="elementor-post__thumbnail__link" href="https://blog.imaginationtech.com/why-portable-gaming-doesnt-feel-quite-next-gen-yet">
+         
+        <div class="elementor-post__thumbnail elementor-fit-height">
+          <img src="https://2426966.fs1.hubspotusercontent-na1.net/hub/2426966/hubfs/shutterstock_686686060-jpg.jpeg?width=698&amp;name=shutterstock_686686060-jpg.jpeg" alt="Why portable gaming doesn’t feel quite next gen yet">
+        </div>
+        
+      </a>
+      <div class="related-post-content">
+        <h3 class="elementor-post__title">
+          <a href="https://blog.imaginationtech.com/why-portable-gaming-doesnt-feel-quite-next-gen-yet">Why portable gaming doesn’t feel quite next gen yet</a>
+        </h3>
+        <div class="elementor-post__meta-data">
+          <span class="elementor-post-date"> January  24,  2022 </span>
+        </div>
+        <div class="elementor-post__excerpt">
+          <p>With the global market for portable gaming consoles set to reach $17bn by <a href="https://www.marketresearchfuture.com/reports/portable-gaming-console-market-4069" rel="noopener" target="_blank">2023</a>, a new opportunity arises for manufacturers to pick up the metaphoricalfalse</p>
+        </div>
+        <a class="elementor-post__read-more" href="https://blog.imaginationtech.com/why-portable-gaming-doesnt-feel-quite-next-gen-yet"> Read More » </a>
+      </div>
+    </div>
+              
+    
+    
+    
+    <div class="related-post-item clearfix"> 
+      <a class="elementor-post__thumbnail__link" href="https://blog.imaginationtech.com/the-role-of-the-gpu-in-experiencing-the-metaverse/">
+         
+        <div class="elementor-post__thumbnail elementor-fit-height">
+          <img src="https://2426966.fs1.hubspotusercontent-na1.net/hub/2426966/hubfs/Imported_Blog_Media/metaverse.jpg?width=698&amp;name=metaverse.jpg" alt="The role of the GPU in experiencing the Metaverse">
+        </div>
+        
+      </a>
+      <div class="related-post-content">
+        <h3 class="elementor-post__title">
+          <a href="https://blog.imaginationtech.com/the-role-of-the-gpu-in-experiencing-the-metaverse/">The role of the GPU in experiencing the Metaverse</a>
+        </h3>
+        <div class="elementor-post__meta-data">
+          <span class="elementor-post-date"> January  10,  2022 </span>
+        </div>
+        <div class="elementor-post__excerpt">
+          <p>How we’re harnessing the power of GPUs for both virtual immersion and large-scale data processing.</p>
+        </div>
+        <a class="elementor-post__read-more" href="https://blog.imaginationtech.com/the-role-of-the-gpu-in-experiencing-the-metaverse/"> Read More » </a>
+      </div>
+    </div>
+              
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+  </div>
+</div></div>
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+<div class="row-fluid-wrapper row-depth-1 row-number-4 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-global_group " style="" data-widget-type="global_group" data-x="0" data-w="12">
+<div class="" data-global-widget-path="generated_global_groups/22484776639.html"><div class="row-fluid-wrapper row-depth-1 row-number-1 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-cell cm-footer-wrapper" style="" data-widget-type="cell" data-x="0" data-w="12">
+
+<div class="row-fluid-wrapper row-depth-1 row-number-2 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-cell page-center" style="" data-widget-type="cell" data-x="0" data-w="12">
+
+<div class="row-fluid-wrapper row-depth-1 row-number-3 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-custom_widget custom-footer-menu" style="" data-widget-type="custom_widget" data-x="0" data-w="12">
+<div id="hs_cos_wrapper_module_1575290462057664" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_module widget-type-menu" style="" data-hs-cos-general-type="widget" data-hs-cos-type="module">
+<span id="hs_cos_wrapper_module_1575290462057664_" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_menu" style="" data-hs-cos-general-type="widget" data-hs-cos-type="menu"><div id="hs_menu_wrapper_module_1575290462057664_" class="hs-menu-wrapper active-branch flyouts hs-menu-flow-horizontal" role="navigation" data-sitemap-name="default" data-menu-id="22496431712" aria-label="Navigation Menu">
+ <ul role="menu">
+  <li class="hs-menu-item hs-menu-depth-1 hs-item-has-children" role="none"><a href="javascript:;" aria-haspopup="true" aria-expanded="false" role="menuitem">Products</a>
+   <ul role="menu" class="hs-menu-children-wrapper">
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/gpu/" role="menuitem">GPU</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/cpu/" role="menuitem">CPU</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/ai/" role="menuitem">AI</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/ethernet/" role="menuitem">Ethernet</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/ray-tracing/" role="menuitem">Ray Tracing</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/design-optimisation-kit/" role="menuitem">Design Optimization Kit</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/catalog/" role="menuitem">Product Finder</a></li>
+   </ul></li>
+  <li class="hs-menu-item hs-menu-depth-1 hs-item-has-children" role="none"><a href="javascript:;" aria-haspopup="true" aria-expanded="false" role="menuitem">Applications</a>
+   <ul role="menu" class="hs-menu-children-wrapper">
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/automotive/" role="menuitem">Automotive</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/consumer/" role="menuitem">Consumer</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/desktop/" role="menuitem">Desktop</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/products/mobile/" role="menuitem">Mobile</a></li>
+   </ul></li>
+  <li class="hs-menu-item hs-menu-depth-1 hs-item-has-children" role="none"><a href="javascript:;" aria-haspopup="true" aria-expanded="false" role="menuitem">Developers</a>
+   <ul role="menu" class="hs-menu-children-wrapper">
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://developer.imaginationtech.com/" role="menuitem" target="_blank" rel="noopener">Developers</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://developer.imaginationtech.com/powervr-sdk/" role="menuitem" target="_blank" rel="noopener">PowerVR SDK and Tools</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://developer.imaginationtech.com/downloads/" role="menuitem" target="_blank" rel="noopener">Developer Downloads</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://docs.imgtec.com/" role="menuitem" target="_blank" rel="noopener">Developer Documentation</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://pvrsupport.imgtec.com/" role="menuitem" target="_blank" rel="noopener">Developer Support</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://forums.imgtec.com" role="menuitem" target="_blank" rel="noopener">Developer Forums</a></li>
+   </ul></li>
+  <li class="hs-menu-item hs-menu-depth-1 hs-item-has-children" role="none"><a href="javascript:;" aria-haspopup="true" aria-expanded="false" role="menuitem">News &amp; Insights</a>
+   <ul role="menu" class="hs-menu-children-wrapper">
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/news/" role="menuitem">News</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://imaginationtech.com/resources/?query=resource&amp;filter-language=english&amp;filter-search=" role="menuitem">Resources</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://blog.imaginationtech.com/" role="menuitem">Blog</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/events/" role="menuitem">Events &amp; Webinars</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/future-of-automotive/" role="menuitem">The Future of Automotive</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://university.imgtec.com/" role="menuitem" target="_blank" rel="noopener">University Programme</a></li>
+   </ul></li>
+  <li class="hs-menu-item hs-menu-depth-1 hs-item-has-children" role="none"><a href="javascript:;" aria-haspopup="true" aria-expanded="false" role="menuitem">About Imagination</a>
+   <ul role="menu" class="hs-menu-children-wrapper">
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/about/" role="menuitem">About Us</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/why-work-with-us/" role="menuitem">Why Work With Us</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/careers/" role="menuitem">Career Opportunities</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/leadership/" role="menuitem">Imagination Leadership</a></li>
+    <li class="hs-menu-item hs-menu-depth-2" role="none"><a href="https://www.imaginationtech.com/contact-us/" role="menuitem">Contact Imagination</a></li>
+   </ul></li>
+ </ul>
+</div></span></div>
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+<div class="row-fluid-wrapper row-depth-1 row-number-4 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-cell cm-ft-bottom-serctoion" style="" data-widget-type="cell" data-x="0" data-w="12">
+
+<div class="row-fluid-wrapper row-depth-1 row-number-5 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-cell mobile-social-icon" style="" data-widget-type="cell" data-x="0" data-w="12">
+
+<div class="row-fluid-wrapper row-depth-2 row-number-1 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-custom_widget " style="" data-widget-type="custom_widget" data-x="0" data-w="12">
+<div id="hs_cos_wrapper_module_1575354707233120" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_module" style="" data-hs-cos-general-type="widget" data-hs-cos-type="module"><div class="cm-footer-social-icon">
+  <a target="_blank" href="https://www.linkedin.com/company/imgtec"><i class="fab fa-linkedin-in"></i><span>linkedin</span></a>
+  <a target="_blank" href="https://twitter.com/imaginationtech"><i class="fab fa-twitter"></i><span>twitter</span></a>
+  <a target="_blank" href="https://www.facebook.com/imgtec/"><i class="fab fa-facebook-f"></i><span>facebook</span></a>
+  <a target="_blank" href="https://www.youtube.com/user/Imgtec/"><i class="fab fa-youtube"></i><span>youtube</span></a>
+  <a target="_blank" href="https://github.com/powervr-graphics"><i class="fab fa-github"></i><span>github</span></a>
+</div></div>
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+<div class="row-fluid-wrapper row-depth-1 row-number-1 ">
+<div class="row-fluid ">
+<div class="span6 widget-span widget-type-cell cm-footer-copyright-wrapper" style="" data-widget-type="cell" data-x="0" data-w="6">
+
+<div class="row-fluid-wrapper row-depth-2 row-number-1 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-custom_widget cm-ft-copyright" style="" data-widget-type="custom_widget" data-x="0" data-w="12">
+<div id="hs_cos_wrapper_module_1575290478914701" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_module widget-type-rich_text" style="" data-hs-cos-general-type="widget" data-hs-cos-type="module"><span id="hs_cos_wrapper_module_1575290478914701_" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_rich_text" style="" data-hs-cos-general-type="widget" data-hs-cos-type="rich_text"><img src="https://blog.imaginationtech.com/hubfs/Imagination_December2019%20Theme/Images/Footer%20Logo.svg" alt="Imagination">
+<p>© Imagination Technologies Limited. All rights reserved.</p></span></div>
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+<div class="row-fluid-wrapper row-depth-2 row-number-2 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-custom_widget cm-footer-bottom-menu" style="" data-widget-type="custom_widget" data-x="0" data-w="12">
+<div id="hs_cos_wrapper_module_15752906538351000" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_module widget-type-simple_menu" style="" data-hs-cos-general-type="widget" data-hs-cos-type="module"><span id="hs_cos_wrapper_module_15752906538351000_" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_simple_menu" style="" data-hs-cos-general-type="widget" data-hs-cos-type="simple_menu"><div id="hs_menu_wrapper_module_15752906538351000_" class="hs-menu-wrapper active-branch flyouts hs-menu-flow-horizontal" role="navigation" data-sitemap-name="" data-menu-id="" aria-label="Navigation Menu">
+ <ul role="menu">
+  <li class="hs-menu-item hs-menu-depth-1" role="none"><a href="https://www.imaginationtech.com/privacy-policy/" role="menuitem" target="_self">Privacy Policy</a></li>
+  <li class="hs-menu-item hs-menu-depth-1" role="none"><a href="https://www.imaginationtech.com/quality-policy/" role="menuitem" target="_self">Quality Policy</a></li>
+  <li class="hs-menu-item hs-menu-depth-1" role="none"><a href="https://www.imaginationtech.com/terms-and-conditions/" role="menuitem" target="_self">Terms &amp; Conditions</a></li>
+  <li class="hs-menu-item hs-menu-depth-1" role="none"><a href="https://www.imaginationtech.com/trademarks/" role="menuitem" target="_self">Trademarks</a></li>
+  <li class="hs-menu-item hs-menu-depth-1" role="none"><a href="https://www.imaginationtech.com/cookies/" role="menuitem" target="_self">Cookies</a></li>
+ </ul>
+</div></span></div>
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+</div><!--end widget-span -->
+<div class="span6 widget-span widget-type-cell cm-social-icon-wrapper" style="" data-widget-type="cell" data-x="6" data-w="6">
+
+<div class="row-fluid-wrapper row-depth-2 row-number-3 ">
+<div class="row-fluid ">
+<div class="span12 widget-span widget-type-custom_widget " style="" data-widget-type="custom_widget" data-x="0" data-w="12">
+<div id="hs_cos_wrapper_module_1575290514593801" class="hs_cos_wrapper hs_cos_wrapper_widget hs_cos_wrapper_type_module" style="" data-hs-cos-general-type="widget" data-hs-cos-type="module"><div class="cm-footer-social-icon">
+  <a target="_blank" href="https://www.linkedin.com/company/imgtec"><i class="fab fa-linkedin-in"></i><span>linkedin</span></a>
+  <a target="_blank" href="https://twitter.com/imaginationtech"><i class="fab fa-twitter"></i><span>twitter</span></a>
+  <a target="_blank" href="https://www.facebook.com/imgtec/"><i class="fab fa-facebook-f"></i><span>facebook</span></a>
+  <a target="_blank" href="https://www.youtube.com/user/Imgtec/"><i class="fab fa-youtube"></i><span>youtube</span></a>
+  <a target="_blank" href="https://github.com/powervr-graphics"><i class="fab fa-github"></i><span>github</span></a>
+</div></div>
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+</div>
+</div><!--end widget-span -->
+</div><!--end row-->
+</div><!--end row-wrapper -->
+
+    </div><!--end footer -->
+</div><!--end footer wrapper -->
+
+    
+<script>
+(function () {
+    window.addEventListener('load', function () {
+        setTimeout(function () {
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/_hcms/perf', true /*async*/);
+            xhr.setRequestHeader("Content-type", "application/json");
+            xhr.onreadystatechange = function () {
+                // do nothing.
+            };
+            var connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+            function populateNetworkInfo(name, connection, info) {
+                if (name in connection) {
+                    info[name] = connection[name];
+                }
+            }
+            var networkInfo = {};
+            if (connection) {
+                ['type', 'effectiveType', 'downlink', 'rtt'].forEach(function(name) {
+                    populateNetworkInfo(name, connection, networkInfo);
+                });
+            }
+            var perfData = {
+                url: location.href,
+                portal: 2426966,
+                content: 63150111846,
+                group: -1,
+                connection: networkInfo,
+                timing: performance.timing
+            };
+            xhr.send(JSON.stringify(perfData));
+        }, 3000);  // Execute this 3 seconds after onload.
+    });
+})();
+</script>
+
+<script src="https://blog.imaginationtech.com/hs-fs/hub/2426966/hub_generated/template_assets/22484959251/1582185154913/Imagination_December2019_Theme/Coded_Files/Imagination_December2019-main.min.js"></script>
+<script>
+var hsVars = hsVars || {}; hsVars['language'] = 'en';
+</script>
+
+<script src="/hs/hsstatic/cos-i18n/static-1.53/bundles/project.js"></script>
+<script src="/hs/hsstatic/keyboard-accessible-menu-flyouts/static-1.17/bundles/project.js"></script>
+<script src="https://blog.imaginationtech.com/hs-fs/hub/2426966/hub_generated/module_assets/1575356844423/module_22623542926_Site_Search_-_Imagination_December2019.min.js"></script>
+<script src="https://blog.imaginationtech.com/hs-fs/hub/2426966/hub_generated/module_assets/1575364492880/module_22622929230_Blog_Sidebar_Categories_-_Imagination_December2019.min.js"></script>
+<script src="https://blog.imaginationtech.com/hs-fs/hub/2426966/hub_generated/module_assets/1575364647001/module_22635807757_Blog_Sidebar_Author_-_Imagination_December2019.min.js"></script>
+
+<!-- Start of HubSpot Analytics Code -->
+<script type="text/javascript">
+var _hsq = _hsq || [];
+_hsq.push(["setContentType", "blog-post"]);
+_hsq.push(["setCanonicalUrl", "https:\/\/blog.imaginationtech.com\/implementing-hybrid-ray-tracing-rasterized-game-engine\/"]);
+_hsq.push(["setPageId", "63150111846"]);
+_hsq.push(["setContentMetadata", {
+    "contentPageId": 63150111846,
+    "legacyPageId": "63150111846",
+    "contentFolderId": null,
+    "contentGroupId": 20509583005,
+    "abTestId": null,
+    "languageVariantId": 63150111846,
+    "languageCode": "en",
+    
+}]);
+</script>
+
+<script type="text/javascript" id="hs-script-loader" async defer src="/hs/scriptloader/2426966.js"></script>
+<!-- End of HubSpot Analytics Code -->
+
+
+<script type="text/javascript">
+var hsVars = {
+    ticks: 1663427914546,
+    page_id: 63150111846,
+    
+    content_group_id: 20509583005,
+    portal_id: 2426966,
+    app_hs_base_url: "https://app.hubspot.com",
+    cp_hs_base_url: "https://cp.hubspot.com",
+    language: "en",
+    analytics_page_type: "blog-post",
+    analytics_page_id: "63150111846",
+    category_id: 3,
+    folder_id: 0,
+    is_hubspot_user: false
+}
+</script>
+
+
+<script defer src="/hs/hsstatic/HubspotToolsMenu/static-1.138/js/index.js"></script>
+
+
+
+<div id="fb-root"></div>
+ <script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_GB/all.js#xfbml=1&status=0";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+ <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="https://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+ 
+
+
+    
+    <!-- Generated by the HubSpot Template Builder - template version 1.03 -->
+
+</body></html>
