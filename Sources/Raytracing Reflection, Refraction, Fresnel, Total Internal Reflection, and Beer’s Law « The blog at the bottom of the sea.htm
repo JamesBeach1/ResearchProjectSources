@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width" />
+<title>Raytracing Reflection, Refraction, Fresnel, Total Internal Reflection, and Beer&#8217;s Law &laquo; The blog at the bottom of the sea</title>
+<link rel="profile" href="http://gmpg.org/xfn/11" />
+<link rel="pingback" href="https://blog.demofox.org/xmlrpc.php" />
+<!--[if lt IE 9]>
+<script src="https://s0.wp.com/wp-content/themes/pub/widely/js/html5.js" type="text/javascript"></script>
+<![endif]-->
+
+<meta name='robots' content='max-image-preview:large' />
+
+<!-- Async WordPress.com Remote Login -->
+<script id="wpcom_remote_login_js">
+var wpcom_remote_login_extra_auth = '';
+function wpcom_remote_login_remove_dom_node_id( element_id ) {
+	var dom_node = document.getElementById( element_id );
+	if ( dom_node ) { dom_node.parentNode.removeChild( dom_node ); }
+}
+function wpcom_remote_login_remove_dom_node_classes( class_name ) {
+	var dom_nodes = document.querySelectorAll( '.' + class_name );
+	for ( var i = 0; i < dom_nodes.length; i++ ) {
+		dom_nodes[ i ].parentNode.removeChild( dom_nodes[ i ] );
+	}
+}
+function wpcom_remote_login_final_cleanup() {
+	wpcom_remote_login_remove_dom_node_classes( "wpcom_remote_login_msg" );
+	wpcom_remote_login_remove_dom_node_id( "wpcom_remote_login_key" );
+	wpcom_remote_login_remove_dom_node_id( "wpcom_remote_login_validate" );
+	wpcom_remote_login_remove_dom_node_id( "wpcom_remote_login_js" );
+	wpcom_remote_login_remove_dom_node_id( "wpcom_request_access_iframe" );
+	wpcom_remote_login_remove_dom_node_id( "wpcom_request_access_styles" );
+}
+
+// Watch for messages back from the remote login
+window.addEventListener( "message", function( e ) {
+	if ( e.origin === "https://r-login.wordpress.com" ) {
+		var data = {};
+		try {
+			data = JSON.parse( e.data );
+		} catch( e ) {
+			wpcom_remote_login_final_cleanup();
+			return;
+		}
+
+		if ( data.msg === 'LOGIN' ) {
+			// Clean up the login check iframe
+			wpcom_remote_login_remove_dom_node_id( "wpcom_remote_login_key" );
+
+			var id_regex = new RegExp( /^[0-9]+$/ );
+			var token_regex = new RegExp( /^.*|.*|.*$/ );
+			if (
+				token_regex.test( data.token )
+				&& id_regex.test( data.wpcomid )
+			) {
+				// We have everything we need to ask for a login
+				var script = document.createElement( "script" );
+				script.setAttribute( "id", "wpcom_remote_login_validate" );
+				script.src = '/remote-login.php?wpcom_remote_login=validate'
+					+ '&wpcomid=' + data.wpcomid
+					+ '&token=' + encodeURIComponent( data.token )
+					+ '&host=' + window.location.protocol
+					+ '//' + window.location.hostname
+					+ '&postid=7951'
+					+ '&is_singular=1';
+				document.body.appendChild( script );
+			}
+
+			return;
+		}
+
+		// Safari ITP, not logged in, so redirect
+		if ( data.msg === 'LOGIN-REDIRECT' ) {
+			window.location = 'https://wordpress.com/log-in?redirect_to=' + window.location.href;
+			return;
+		}
+
+		// Safari ITP, storage access failed, remove the request
+		if ( data.msg === 'LOGIN-REMOVE' ) {
+			var css_zap = 'html { -webkit-transition: margin-top 1s; transition: margin-top 1s; } /* 9001 */ html { margin-top: 0 !important; } * html body { margin-top: 0 !important; } @media screen and ( max-width: 782px ) { html { margin-top: 0 !important; } * html body { margin-top: 0 !important; } }';
+			var style_zap = document.createElement( 'style' );
+			style_zap.type = 'text/css';
+			style_zap.appendChild( document.createTextNode( css_zap ) );
+			document.body.appendChild( style_zap );
+
+			var e = document.getElementById( 'wpcom_request_access_iframe' );
+			e.parentNode.removeChild( e );
+
+			document.cookie = 'wordpress_com_login_access=denied; path=/; max-age=31536000';
+
+			return;
+		}
+
+		// Safari ITP
+		if ( data.msg === 'REQUEST_ACCESS' ) {
+			console.log( 'request access: safari' );
+
+			// Check ITP iframe enable/disable knob
+			if ( wpcom_remote_login_extra_auth !== 'safari_itp_iframe' ) {
+				return;
+			}
+
+			// If we are in a "private window" there is no ITP.
+			var private_window = false;
+			try {
+				var opendb = window.openDatabase( null, null, null, null );
+			} catch( e ) {
+				private_window = true;
+			}
+
+			if ( private_window ) {
+				console.log( 'private window' );
+				return;
+			}
+
+			var iframe = document.createElement( 'iframe' );
+			iframe.id = 'wpcom_request_access_iframe';
+			iframe.setAttribute( 'scrolling', 'no' );
+			iframe.setAttribute( 'sandbox', 'allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-top-navigation-by-user-activation' );
+			iframe.src = 'https://r-login.wordpress.com/remote-login.php?wpcom_remote_login=request_access&origin=' + encodeURIComponent( data.origin ) + '&wpcomid=' + encodeURIComponent( data.wpcomid );
+
+			var css = 'html { -webkit-transition: margin-top 1s; transition: margin-top 1s; } /* 9001 */ html { margin-top: 46px !important; } * html body { margin-top: 46px !important; } @media screen and ( max-width: 660px ) { html { margin-top: 71px !important; } * html body { margin-top: 71px !important; } #wpcom_request_access_iframe { display: block; height: 71px !important; } } #wpcom_request_access_iframe { border: 0px; height: 46px; position: fixed; top: 0; left: 0; width: 100%; min-width: 100%; z-index: 99999; background: #23282d; } ';
+
+			var style = document.createElement( 'style' );
+			style.type = 'text/css';
+			style.id = 'wpcom_request_access_styles';
+			style.appendChild( document.createTextNode( css ) );
+			document.body.appendChild( style );
+
+			document.body.appendChild( iframe );
+		}
+
+		if ( data.msg === 'DONE' ) {
+			wpcom_remote_login_final_cleanup();
+		}
+	}
+}, false );
+
+// Inject the remote login iframe after the page has had a chance to load
+// more critical resources
+window.addEventListener( "DOMContentLoaded", function( e ) {
+	var iframe = document.createElement( "iframe" );
+	iframe.style.display = "none";
+	iframe.setAttribute( "scrolling", "no" );
+	iframe.setAttribute( "id", "wpcom_remote_login_key" );
+	iframe.src = "https://r-login.wordpress.com/remote-login.php"
+		+ "?wpcom_remote_login=key"
+		+ "&origin=aHR0cHM6Ly9ibG9nLmRlbW9mb3gub3Jn"
+		+ "&wpcomid=129449992"
+		+ "&time=1664407120";
+	document.body.appendChild( iframe );
+}, false );
+</script>
+<link rel='dns-prefetch' href='//s0.wp.com' />
+<link rel='dns-prefetch' href='//demofox2.wordpress.com' />
+<link rel='dns-prefetch' href='//wordpress.com' />
+<link href='https://fonts.gstatic.com' crossorigin rel='preconnect' />
+<link rel="alternate" type="application/rss+xml" title="The blog at the bottom of the sea &raquo; Feed" href="https://blog.demofox.org/feed/" />
+<link rel="alternate" type="application/rss+xml" title="The blog at the bottom of the sea &raquo; Comments Feed" href="https://blog.demofox.org/comments/feed/" />
+	<script type="text/javascript">
+		/* <![CDATA[ */
+		function addLoadEvent(func) {
+			var oldonload = window.onload;
+			if (typeof window.onload != 'function') {
+				window.onload = func;
+			} else {
+				window.onload = function () {
+					oldonload();
+					func();
+				}
+			}
+		}
+		/* ]]> */
+	</script>
+	<script type="text/javascript">
+window._wpemojiSettings = {"baseUrl":"https:\/\/s0.wp.com\/wp-content\/mu-plugins\/wpcom-smileys\/twemoji\/2\/72x72\/","ext":".png","svgUrl":"https:\/\/s0.wp.com\/wp-content\/mu-plugins\/wpcom-smileys\/twemoji\/2\/svg\/","svgExt":".svg","source":{"concatemoji":"https:\/\/s0.wp.com\/wp-includes\/js\/wp-emoji-release.min.js?m=1652185836h&ver=6.0.2"}};
+/*! This file is auto-generated */
+!function(e,a,t){var n,r,o,i=a.createElement("canvas"),p=i.getContext&&i.getContext("2d");function s(e,t){var a=String.fromCharCode,e=(p.clearRect(0,0,i.width,i.height),p.fillText(a.apply(this,e),0,0),i.toDataURL());return p.clearRect(0,0,i.width,i.height),p.fillText(a.apply(this,t),0,0),e===i.toDataURL()}function c(e){var t=a.createElement("script");t.src=e,t.defer=t.type="text/javascript",a.getElementsByTagName("head")[0].appendChild(t)}for(o=Array("flag","emoji"),t.supports={everything:!0,everythingExceptFlag:!0},r=0;r<o.length;r++)t.supports[o[r]]=function(e){if(!p||!p.fillText)return!1;switch(p.textBaseline="top",p.font="600 32px Arial",e){case"flag":return s([127987,65039,8205,9895,65039],[127987,65039,8203,9895,65039])?!1:!s([55356,56826,55356,56819],[55356,56826,8203,55356,56819])&&!s([55356,57332,56128,56423,56128,56418,56128,56421,56128,56430,56128,56423,56128,56447],[55356,57332,8203,56128,56423,8203,56128,56418,8203,56128,56421,8203,56128,56430,8203,56128,56423,8203,56128,56447]);case"emoji":return!s([129777,127995,8205,129778,127999],[129777,127995,8203,129778,127999])}return!1}(o[r]),t.supports.everything=t.supports.everything&&t.supports[o[r]],"flag"!==o[r]&&(t.supports.everythingExceptFlag=t.supports.everythingExceptFlag&&t.supports[o[r]]);t.supports.everythingExceptFlag=t.supports.everythingExceptFlag&&!t.supports.flag,t.DOMReady=!1,t.readyCallback=function(){t.DOMReady=!0},t.supports.everything||(n=function(){t.readyCallback()},a.addEventListener?(a.addEventListener("DOMContentLoaded",n,!1),e.addEventListener("load",n,!1)):(e.attachEvent("onload",n),a.attachEvent("onreadystatechange",function(){"complete"===a.readyState&&t.readyCallback()})),(e=t.source||{}).concatemoji?c(e.concatemoji):e.wpemoji&&e.twemoji&&(c(e.twemoji),c(e.wpemoji)))}(window,document,window._wpemojiSettings);
+</script>
+<style type="text/css">
+img.wp-smiley,
+img.emoji {
+	display: inline !important;
+	border: none !important;
+	box-shadow: none !important;
+	height: 1em !important;
+	width: 1em !important;
+	margin: 0 0.07em !important;
+	vertical-align: -0.1em !important;
+	background: none !important;
+	padding: 0 !important;
+}
+</style>
+	<link crossorigin='anonymous' rel='stylesheet' id='all-css-0-1' href='https://s0.wp.com/_static/??-eJyNkutOBCEMhV9IBlEz/jI+C5cGu1suoeCGt5fFaMZZd/UPyaH9DoeCPGVhU6wQqwxNZGoeI8tTtikIDkjQd2qxzHfyd6wA6QpO5MR1p25hhEdgeYCatT2KqS7av3p9G9JA8aNSQL6rp0UtSpqG5KShNA1M0aVLrp3g2wijpebO57AM4FADQZhBNiKT7lAEgde2LwHj3/iobfUP6Hr4mXRzZ91Tq8IXdLvY/7YoumL0fAXfTPs8t7Efsr4MfwP7/ATG5ALMYqwBWxD1bYDztV7Di1rXx1U9P6z3hw8v9+Ix?cssminify=yes' type='text/css' media='all' />
+<style id='wp-block-library-inline-css'>
+.has-text-align-justify {
+	text-align:justify;
+}
+.wp-block-cover__image-background.has-parallax {
+	background-size: cover;
+}
+</style>
+<style id='global-styles-inline-css'>
+body{--wp--preset--color--black: #000000;--wp--preset--color--cyan-bluish-gray: #abb8c3;--wp--preset--color--white: #ffffff;--wp--preset--color--pale-pink: #f78da7;--wp--preset--color--vivid-red: #cf2e2e;--wp--preset--color--luminous-vivid-orange: #ff6900;--wp--preset--color--luminous-vivid-amber: #fcb900;--wp--preset--color--light-green-cyan: #7bdcb5;--wp--preset--color--vivid-green-cyan: #00d084;--wp--preset--color--pale-cyan-blue: #8ed1fc;--wp--preset--color--vivid-cyan-blue: #0693e3;--wp--preset--color--vivid-purple: #9b51e0;--wp--preset--gradient--vivid-cyan-blue-to-vivid-purple: linear-gradient(135deg,rgba(6,147,227,1) 0%,rgb(155,81,224) 100%);--wp--preset--gradient--light-green-cyan-to-vivid-green-cyan: linear-gradient(135deg,rgb(122,220,180) 0%,rgb(0,208,130) 100%);--wp--preset--gradient--luminous-vivid-amber-to-luminous-vivid-orange: linear-gradient(135deg,rgba(252,185,0,1) 0%,rgba(255,105,0,1) 100%);--wp--preset--gradient--luminous-vivid-orange-to-vivid-red: linear-gradient(135deg,rgba(255,105,0,1) 0%,rgb(207,46,46) 100%);--wp--preset--gradient--very-light-gray-to-cyan-bluish-gray: linear-gradient(135deg,rgb(238,238,238) 0%,rgb(169,184,195) 100%);--wp--preset--gradient--cool-to-warm-spectrum: linear-gradient(135deg,rgb(74,234,220) 0%,rgb(151,120,209) 20%,rgb(207,42,186) 40%,rgb(238,44,130) 60%,rgb(251,105,98) 80%,rgb(254,248,76) 100%);--wp--preset--gradient--blush-light-purple: linear-gradient(135deg,rgb(255,206,236) 0%,rgb(152,150,240) 100%);--wp--preset--gradient--blush-bordeaux: linear-gradient(135deg,rgb(254,205,165) 0%,rgb(254,45,45) 50%,rgb(107,0,62) 100%);--wp--preset--gradient--luminous-dusk: linear-gradient(135deg,rgb(255,203,112) 0%,rgb(199,81,192) 50%,rgb(65,88,208) 100%);--wp--preset--gradient--pale-ocean: linear-gradient(135deg,rgb(255,245,203) 0%,rgb(182,227,212) 50%,rgb(51,167,181) 100%);--wp--preset--gradient--electric-grass: linear-gradient(135deg,rgb(202,248,128) 0%,rgb(113,206,126) 100%);--wp--preset--gradient--midnight: linear-gradient(135deg,rgb(2,3,129) 0%,rgb(40,116,252) 100%);--wp--preset--duotone--dark-grayscale: url('#wp-duotone-dark-grayscale');--wp--preset--duotone--grayscale: url('#wp-duotone-grayscale');--wp--preset--duotone--purple-yellow: url('#wp-duotone-purple-yellow');--wp--preset--duotone--blue-red: url('#wp-duotone-blue-red');--wp--preset--duotone--midnight: url('#wp-duotone-midnight');--wp--preset--duotone--magenta-yellow: url('#wp-duotone-magenta-yellow');--wp--preset--duotone--purple-green: url('#wp-duotone-purple-green');--wp--preset--duotone--blue-orange: url('#wp-duotone-blue-orange');--wp--preset--font-size--small: 13px;--wp--preset--font-size--medium: 20px;--wp--preset--font-size--large: 36px;--wp--preset--font-size--x-large: 42px;--wp--preset--spacing--20: 0.44rem;--wp--preset--spacing--30: 0.67rem;--wp--preset--spacing--40: 1rem;--wp--preset--spacing--50: 1.5rem;--wp--preset--spacing--60: 2.25rem;--wp--preset--spacing--70: 3.38rem;--wp--preset--spacing--80: 5.06rem;}:where(.is-layout-flex){gap: 0.5em;}body .is-layout-flow > .alignleft{float: left;}body .is-layout-flow > .alignright{float: right;}body .is-layout-flow > .aligncenter{margin-left: auto !important;margin-right: auto !important;}body .is-layout-constrained > .alignleft{float: left;}body .is-layout-constrained > .alignright{float: right;}body .is-layout-constrained > .aligncenter{margin-left: auto !important;margin-right: auto !important;}body .is-layout-constrained > :where(:not(.alignleft):not(.alignright):not(.alignfull)){max-width: var(--wp--style--global--content-size);margin-left: auto !important;margin-right: auto !important;}body .is-layout-constrained > .alignwide{max-width: var(--wp--style--global--wide-size);}body .is-layout-flex{display: flex;}body .is-layout-flex{flex-wrap: wrap;align-items: center;}body .is-layout-flex > *{margin: 0;}:where(.wp-block-columns.is-layout-flex){gap: 2em;}.has-black-color{color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-color{color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-color{color: var(--wp--preset--color--white) !important;}.has-pale-pink-color{color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-color{color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-color{color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-color{color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-color{color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-color{color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-color{color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-color{color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-color{color: var(--wp--preset--color--vivid-purple) !important;}.has-black-background-color{background-color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-background-color{background-color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-background-color{background-color: var(--wp--preset--color--white) !important;}.has-pale-pink-background-color{background-color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-background-color{background-color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-background-color{background-color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-background-color{background-color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-background-color{background-color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-background-color{background-color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-background-color{background-color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-background-color{background-color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-background-color{background-color: var(--wp--preset--color--vivid-purple) !important;}.has-black-border-color{border-color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-border-color{border-color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-border-color{border-color: var(--wp--preset--color--white) !important;}.has-pale-pink-border-color{border-color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-border-color{border-color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-border-color{border-color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-border-color{border-color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-border-color{border-color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-border-color{border-color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-border-color{border-color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-border-color{border-color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-border-color{border-color: var(--wp--preset--color--vivid-purple) !important;}.has-vivid-cyan-blue-to-vivid-purple-gradient-background{background: var(--wp--preset--gradient--vivid-cyan-blue-to-vivid-purple) !important;}.has-light-green-cyan-to-vivid-green-cyan-gradient-background{background: var(--wp--preset--gradient--light-green-cyan-to-vivid-green-cyan) !important;}.has-luminous-vivid-amber-to-luminous-vivid-orange-gradient-background{background: var(--wp--preset--gradient--luminous-vivid-amber-to-luminous-vivid-orange) !important;}.has-luminous-vivid-orange-to-vivid-red-gradient-background{background: var(--wp--preset--gradient--luminous-vivid-orange-to-vivid-red) !important;}.has-very-light-gray-to-cyan-bluish-gray-gradient-background{background: var(--wp--preset--gradient--very-light-gray-to-cyan-bluish-gray) !important;}.has-cool-to-warm-spectrum-gradient-background{background: var(--wp--preset--gradient--cool-to-warm-spectrum) !important;}.has-blush-light-purple-gradient-background{background: var(--wp--preset--gradient--blush-light-purple) !important;}.has-blush-bordeaux-gradient-background{background: var(--wp--preset--gradient--blush-bordeaux) !important;}.has-luminous-dusk-gradient-background{background: var(--wp--preset--gradient--luminous-dusk) !important;}.has-pale-ocean-gradient-background{background: var(--wp--preset--gradient--pale-ocean) !important;}.has-electric-grass-gradient-background{background: var(--wp--preset--gradient--electric-grass) !important;}.has-midnight-gradient-background{background: var(--wp--preset--gradient--midnight) !important;}.has-small-font-size{font-size: var(--wp--preset--font-size--small) !important;}.has-medium-font-size{font-size: var(--wp--preset--font-size--medium) !important;}.has-large-font-size{font-size: var(--wp--preset--font-size--large) !important;}.has-x-large-font-size{font-size: var(--wp--preset--font-size--x-large) !important;}
+:where(.wp-block-columns.is-layout-flex){gap: 2em;}
+.wp-block-pullquote{font-size: 1.5em;line-height: 1.6;}
+.wp-block-navigation a:where(:not(.wp-element-button)){color: inherit;}
+</style>
+<link crossorigin='anonymous' rel='stylesheet' id='all-css-2-1' href='https://s0.wp.com/_static/??-eJx9jksOwjAMRC9EcFs+O8RZ2tQEgxNXjaOqt8eABAUkdjPPnrFhGpyXpJgUYnEDl0Apg5cYDTmmK5rLX2RtZAUESZQsnV/iOVh06hmjNQylg4l65Bmyzow/e4vbAcWx+FZJ0odxJ25p/BcdsWMJJsPj57e9h47xUO+qTbVvmnp7uQEN7FyW?cssminify=yes' type='text/css' media='all' />
+<style id='jetpack-global-styles-frontend-style-inline-css'>
+:root { --font-headings: unset; --font-base: unset; --font-headings-default: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif; --font-base-default: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif;}
+</style>
+<link crossorigin='anonymous' rel='stylesheet' id='all-css-4-1' href='https://s0.wp.com/_static/??-eJxtjEEKAjEMRS9kDerM6EY8itRY24yZpDQpXl8EXYiuHg/e//CoAVU8icPSQ+WeSQyqmocbR2pgJTaS/OEazVbwfzUnrxHvb4fa9NrRSQXOJAimSJEDa1b7kp9PL2lJBmWAzHqJ/ApOy3EzjdNuOOy34/wERyxD4Q==?cssminify=yes' type='text/css' media='all' />
+<script id='jetpack_related-posts-js-extra'>
+var related_posts_js_options = {"post_heading":"h4"};
+</script>
+<script id='wpcom-actionbar-placeholder-js-extra'>
+var actionbardata = {"siteID":"129449992","siteURL":"https:\/\/blog.demofox.org","xhrURL":"https:\/\/blog.demofox.org\/wp-admin\/admin-ajax.php","nonce":"ef9ee7792b","isLoggedIn":"","statusMessage":"","subsEmailDefault":"instantly","proxyScriptUrl":"https:\/\/s0.wp.com\/wp-content\/js\/wpcom-proxy-request.js?ver=20211021","shortlink":"https:\/\/wp.me\/p8L9R6-24f","i18n":{"followedText":"New posts from this site will now appear in your <a href=\"https:\/\/wordpress.com\/read\">Reader<\/a>","foldBar":"Collapse this bar","unfoldBar":"Expand this bar"}};
+</script>
+<script crossorigin='anonymous' type='text/javascript' src='https://s0.wp.com/_static/??-eJyFjdEKwjAMRX/IrIpjxQfxW+aWlZQ2rUmL7u+tMEH24lO4OSe55plhSlyQi/FqYrpTQKiKMrq2A+IldV4P5seLFXKojliNYBgLzpCTll3aX7XvEgpkSa/1y4inUGfUD/SPirJuo4vEfyWI5KQVbvItXk/D2dpj31+sfwPadVA2'></script>
+<script type='text/javascript'>
+	window.addEventListener( 'DOMContentLoaded', function() {
+		rltInitialize( {"token":null,"iframeOrigins":["https:\/\/widgets.wp.com"]} );
+	} );
+</script>
+<link rel="EditURI" type="application/rsd+xml" title="RSD" href="https://demofox2.wordpress.com/xmlrpc.php?rsd" />
+<link rel="wlwmanifest" type="application/wlwmanifest+xml" href="https://s0.wp.com/wp-includes/wlwmanifest.xml" /> 
+<meta name="generator" content="WordPress.com" />
+<link rel="canonical" href="https://blog.demofox.org/2017/01/09/raytracing-reflection-refraction-fresnel-total-internal-reflection-and-beers-law/" />
+<link rel='shortlink' href='https://wp.me/p8L9R6-24f' />
+<link rel="alternate" type="application/json+oembed" href="https://public-api.wordpress.com/oembed/?format=json&amp;url=https%3A%2F%2Fblog.demofox.org%2F2017%2F01%2F09%2Fraytracing-reflection-refraction-fresnel-total-internal-reflection-and-beers-law%2F&amp;for=wpcom-auto-discovery" /><link rel="alternate" type="application/xml+oembed" href="https://public-api.wordpress.com/oembed/?format=xml&amp;url=https%3A%2F%2Fblog.demofox.org%2F2017%2F01%2F09%2Fraytracing-reflection-refraction-fresnel-total-internal-reflection-and-beers-law%2F&amp;for=wpcom-auto-discovery" />
+<!-- Jetpack Open Graph Tags -->
+<meta property="og:type" content="article" />
+<meta property="og:title" content="Raytracing Reflection, Refraction, Fresnel, Total Internal Reflection, and Beer&#8217;s Law" />
+<meta property="og:url" content="https://blog.demofox.org/2017/01/09/raytracing-reflection-refraction-fresnel-total-internal-reflection-and-beers-law/" />
+<meta property="og:description" content="This post talks about how to render images like the below in real time using ray tracing. Some realism in the images come from reflection and refraction, but the real icing on the cake comes from F…" />
+<meta property="article:published_time" content="2017-01-09T15:01:56+00:00" />
+<meta property="article:modified_time" content="2017-01-09T15:01:56+00:00" />
+<meta property="og:site_name" content="The blog at the bottom of the sea" />
+<meta property="og:image" content="https://demofox2.files.wordpress.com/2017/01/shadertoy.png" />
+<meta property="og:image:alt" content="" />
+<meta property="og:locale" content="en_US" />
+<meta property="article:publisher" content="https://www.facebook.com/WordPresscom" />
+<meta name="twitter:creator" content="@atrix256" />
+<meta name="twitter:site" content="@atrix256" />
+<meta name="twitter:text:title" content="Raytracing Reflection, Refraction, Fresnel, Total Internal Reflection, and Beer&#8217;s&nbsp;Law" />
+<meta name="twitter:image" content="https://demofox2.files.wordpress.com/2017/01/shadertoy.png?w=144" />
+<meta name="twitter:card" content="summary" />
+
+<!-- End Jetpack Open Graph Tags -->
+<link rel="search" type="application/opensearchdescription+xml" href="https://blog.demofox.org/osd.xml" title="The blog at the bottom of the sea" />
+<link rel="search" type="application/opensearchdescription+xml" href="https://s1.wp.com/opensearch.xml" title="WordPress.com" />
+<meta name="theme-color" content="#000000" />
+<meta name="application-name" content="The blog at the bottom of the sea" /><meta name="msapplication-window" content="width=device-width;height=device-height" /><meta name="msapplication-tooltip" content="Programming, Graphics, Gamedev, Exotic Computation, Audio Synthesis" /><meta name="msapplication-task" content="name=Subscribe;action-uri=https://blog.demofox.org/feed/;icon-uri=https://demofox2.files.wordpress.com/2017/05/cropped-grand-teton.jpg?w=16" /><meta name="msapplication-task" content="name=Sign up for a free blog;action-uri=http://wordpress.com/signup/;icon-uri=https://s0.wp.com/i/favicon.ico" /><meta name="msapplication-task" content="name=WordPress.com Support;action-uri=http://support.wordpress.com/;icon-uri=https://s0.wp.com/i/favicon.ico" /><meta name="msapplication-task" content="name=WordPress.com Forums;action-uri=http://forums.wordpress.com/;icon-uri=https://s0.wp.com/i/favicon.ico" /><meta name="description" content="This post talks about how to render images like the below in real time using ray tracing. Some realism in the images come from reflection and refraction, but the real icing on the cake comes from Fresnel, total internal reflection and Beer&#039;s law. We&#039;ll look at the contributions of these features individually and talk about&hellip;" />
+<style type="text/css" id="custom-background-css">
+body.custom-background { background-color: #000000; }
+</style>
+	<style type="text/css" id="custom-colors-css">	.widget li {
+		border-bottom: none;
+	}
+body { background-color: #000000;}
+.tweet-container { background-color: #000000;}
+.widgets { background-color: #191919;}
+.widget li, .widget .children li:first-child, .widget .sub-menu li:first-child { border-color: #000000;}
+</style>
+<link rel="icon" href="https://demofox2.files.wordpress.com/2017/05/cropped-grand-teton.jpg?w=32" sizes="32x32" />
+<link rel="icon" href="https://demofox2.files.wordpress.com/2017/05/cropped-grand-teton.jpg?w=192" sizes="192x192" />
+<link rel="apple-touch-icon" href="https://demofox2.files.wordpress.com/2017/05/cropped-grand-teton.jpg?w=180" />
+<meta name="msapplication-TileImage" content="https://demofox2.files.wordpress.com/2017/05/cropped-grand-teton.jpg?w=270" />
+<!-- Your Google Analytics Plugin is missing the tracking ID -->
+</head>
+
+<body class="post-template-default single single-post postid-7951 single-format-standard custom-background customizer-styles-applied sidebars-two highlander-enabled highlander-light custom-colors">
+<div id="page" class="hfeed site clearfix">
+	<header id="masthead" class="site-header clearfix" role="banner">
+		<hgroup>
+			<h1 class="site-title"><a href="https://blog.demofox.org/" title="The blog at the bottom of the sea" rel="home">The blog at the bottom of the sea</a></h1>
+			<h2 class="site-description">Programming, Graphics, Gamedev, Exotic Computation, Audio Synthesis</h2>
+		</hgroup>
+
+		<nav role="navigation" class="site-navigation main-navigation">
+			<h1 class="assistive-text">Menu</h1>
+			<div class="assistive-text skip-link"><a href="#content" title="Skip to content">Skip to content</a></div>
+
+			<div class="menu-primary-container"><ul id="menu-primary" class="menu"><li id="menu-item-8" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-8"><a href="/">Table of Contents</a></li>
+<li id="menu-item-11772" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-11772"><a href="https://blog.demofox.org/license/">License</a></li>
+<li id="menu-item-11988" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-11988"><a href="https://blog.demofox.org/contact/">Contact</a></li>
+</ul></div>		</nav><!-- .site-navigation .main-navigation -->
+
+				<div class="custom-header">
+			<a href="https://blog.demofox.org/" title="The blog at the bottom of the sea" rel="home">
+				<img src="https://demofox2.files.wordpress.com/2017/05/grand-teton.jpg" width="940" height="188" alt="" />
+			</a>
+		</div>
+		
+	</header><!-- #masthead .site-header -->
+
+	<div id="main" class="site-main">
+		<div id="primary" class="content-area">
+			<div id="content" class="site-content" role="main">
+
+			
+				
+<article id="post-7951" class="clearfix post-7951 post type-post status-publish format-standard hentry category-graphics category-math category-ray-tracing category-shadertoy">
+	<header class="entry-header">
+		<h1 class="entry-title"><a href="https://blog.demofox.org/2017/01/09/raytracing-reflection-refraction-fresnel-total-internal-reflection-and-beers-law/" rel="bookmark">Raytracing Reflection, Refraction, Fresnel, Total Internal Reflection, and Beer&#8217;s&nbsp;Law</a></h1>	</header><!-- .entry-header -->
+
+	<footer class="entry-meta">
+		<span class="author vcard"><a class="url fn n" href="https://blog.demofox.org/author/demofox2/" title="View all posts by demofox2" rel="author"><i class="genericon"></i>demofox2</a></span><a class="pubdate" href="https://blog.demofox.org/2017/01/09/raytracing-reflection-refraction-fresnel-total-internal-reflection-and-beers-law/" title="7:01 am" rel="bookmark"><i class="genericon"></i><time class="entry-date" datetime="2017-01-09T07:01:56-08:00" pubdate>January 9, 2017</time></a>	</footer><!-- .entry-meta -->
+
+		<div class="entry-content">
+				<p>This post talks about how to render images like the below in real time using ray tracing.  Some realism in the images come from reflection and refraction, but the real icing on the cake comes from Fresnel, total internal reflection and Beer&#8217;s law.  We&#8217;ll look at the contributions of these features individually and talk about how to properly combine them for the greatest and most realistic results (:</p>
+<p>The renderings come from a shadertoy that accompanies this post: <a href="https://www.shadertoy.com/view/4tyXDR" target="_blank">Shadertoy: Reflect Refract TIR Fresnel RayT</a><br />
+<img src="https://demofox2.files.wordpress.com/2017/01/shadertoy.png?w=800" /></p>
+<p>My motivation for learning more about this stuff is that I&#8217;m starting to make a marble madness inspired game, and I&#8217;m planning to do hybrid rendering between rasterization and ray based techniques.</p>
+<p>This post will focus more on how to make these features work for you in ray tracing, and less about the reasons for why they work the way they do.  This post is more about practical implementations, and less about rigorous explanations.</p>
+<p>If you have any questions, comments, corrections or additions, feel free to leave in the comments section at the bottom, or feel free to hit me up on twitter at <a href="https://twitter.com/Atrix256" target="_blank">@Atrix256</a>.</p>
+<p>This post is assumes you know how to do basic raytracing with ambient, diffuse and specular lighting, like the image below, which we are going to start with:<br />
+<img src="https://demofox2.files.wordpress.com/2017/01/diffuse.png?w=800" /></p>
+<h1>Reflection</h1>
+<p>The first thing to talk about is reflection.  More specifically we are going to be talking about SPECULAR reflection.</p>
+<p>Specular is defined by the dictionary to mean &#8220;of, relating to, or having the properties of a mirror.&#8221;, so what we normally think of as reflection (like from a mirror) is in fact specular reflection.</p>
+<p>There is non specular reflection, aka diffuse reflection, which just means that light is reflected off of a surface in a non mirror like way.  This is accomplished with diffuse lighting where commonly we dot product the normal of a surface with the direction from the surface to the light to know how much to light that point on the surface.</p>
+<p>If specular reflection is how mirrors reflect, and diffuse reflection is how regular diffuse surfaces work, then you might wonder what specular lighting is all about.</p>
+<p>A specular highlight is actually just a cheap approximation to doing a mirror like specular reflection of a light source, so it is a cheap kind of specular reflection.</p>
+<p>Let&#8217;s talk about how to do real mirror like specular reflection in a ray tracer.</p>
+<p>When light hits a surface, some amount of the light will be reflected, and some amount of the light will be transmitted into the object.  Transmitted light is used for the diffuse shading.</p>
+<p>As you might imagine, the amount of light reflected plus the amount of light transmitted must equal the total amount of light that hit the surface.  (note that some transmitted energy may be absorbed and given off as heat, or the object may be glowing, so may give off more light than received but let&#8217;s ignore that stuff for now.)</p>
+<p>A common way to deal with this is to define a reflectivity of a surface as the amount of light it reflects in percent and use 100% minus that amount as the transmitted amount.</p>
+<p>You might say that 2% of light that hits a surface reflects.  That means that 98% of the light that hits a surface is transmitted and used for the diffuse shading.</p>
+<p>When shading a point on the surface, you would calculate both the reflected color at that point on the surface, and the diffuse shaded color at that point, but you multiply the reflected color by 0.02 and the diffuse shaded color by 0.98 and add them together.  Doing this gives a result like the below:<br />
+<img src="https://demofox2.files.wordpress.com/2017/01/reflect.png?w=800" /></p>
+<p>The higher the reflectivity percent, the more reflection you get, and the less diffuse shading you get.  Turning down reflectivity has the opposite effect.</p>
+<p>How do you calculate the reflected color of a point on a surface though?</p>
+<p>You simply calculate the ray that reflected off of the surface, and calculate the color of what that ray hit.</p>
+<p>To calculate a reflected ray, you need to know the direction that the ray was traveling when it hit the surface (The incident direction), you need to know the location that the ray hit the surface (the surface location), and you need to know the normal of the surface at the intersection point.</p>
+<p>If you have those things you can calculate the reflected ray direction as this:</p>
+<p><img src="https://s0.wp.com/latex.php?latex=ReflectRayLocation+%3D+SurfaceLocation+%5C%5C+ReflectRayDirection+%3D+IncidentDirection+-+2+%2A+SurfaceNormal+%2A+DotProduct%28IncidentDirection%2C+SurfaceNormal%29&#038;bg=ffffff&#038;fg=666666&#038;s=0&#038;c=20201002" srcset="https://s0.wp.com/latex.php?latex=ReflectRayLocation+%3D+SurfaceLocation+%5C%5C+ReflectRayDirection+%3D+IncidentDirection+-+2+%2A+SurfaceNormal+%2A+DotProduct%28IncidentDirection%2C+SurfaceNormal%29&#038;bg=ffffff&#038;fg=666666&#038;s=0&#038;c=20201002 1x, https://s0.wp.com/latex.php?latex=ReflectRayLocation+%3D+SurfaceLocation+%5C%5C+ReflectRayDirection+%3D+IncidentDirection+-+2+%2A+SurfaceNormal+%2A+DotProduct%28IncidentDirection%2C+SurfaceNormal%29&#038;bg=ffffff&#038;fg=666666&#038;s=0&#038;c=20201002&#038;zoom=4.5 4x" alt="ReflectRayLocation = SurfaceLocation &#92;&#92; ReflectRayDirection = IncidentDirection - 2 * SurfaceNormal * DotProduct(IncidentDirection, SurfaceNormal)" class="latex" /></p>
+<p>Note that in hlsl and glsl there is a function called &#8220;reflect&#8221; which takes the incident direction, and the surface normal, and returns you the reflected direction.</p>
+<p>Doing the above is mathematically correct, but if you then try to raytrace from that ray, you may hit the same object you are reflecting off.  One way to fight that problem is to push the ray positin a small amount away from the surface to make sure it misses it.  You can do that for example like this:</p>
+<p><img src="https://s0.wp.com/latex.php?latex=ReflectRayLocation+%3D+ReflectRayLocation+%2B+ReflectRayDirection+%2A+0.01&#038;bg=ffffff&#038;fg=666666&#038;s=0&#038;c=20201002" srcset="https://s0.wp.com/latex.php?latex=ReflectRayLocation+%3D+ReflectRayLocation+%2B+ReflectRayDirection+%2A+0.01&#038;bg=ffffff&#038;fg=666666&#038;s=0&#038;c=20201002 1x, https://s0.wp.com/latex.php?latex=ReflectRayLocation+%3D+ReflectRayLocation+%2B+ReflectRayDirection+%2A+0.01&#038;bg=ffffff&#038;fg=666666&#038;s=0&#038;c=20201002&#038;zoom=4.5 4x" alt="ReflectRayLocation = ReflectRayLocation + ReflectRayDirection * 0.01" class="latex" /></p>
+<p>There are other ways to make sure you don&#8217;t hit the same object again, but pushing the ray away from the object a small amount really does work pretty nicely in practice.</p>
+<h1>Refraction</h1>
+<p>I mentioned in the last section that whatever light wasn&#8217;t reflected when it hit a surface was transmitted. I also said that the transmitted light was used for diffuse shading.</p>
+<p>In reality, it&#8217;s passed through the &#8220;bidirectional scattering distribution function&#8221; aka BSDF.  You may have heard the term &#8220;bidirectional reflection distribution function&#8221; aka BRDF.  A BRDF only deals with the hemisphere (half a sphere) that surrounds the surface normal.  The BSDF on the other hand deals with the full sphere surrounding a surface normal so BRDF is a subset of what is possible with the BSDF.</p>
+<p>Because the BSDF deals with an entire sphere, that means that it can handle reflection (specular and non specular) like the BRDF can, but it can also deal with transparency and refraction, where some of the light travels THROUGH an object.</p>
+<p>In a path tracer where everything is physically accurate and mathematically precise, we would be interested in dealing with a BSDF and integrating over the sphere, but since we are working with a ray tracer, our physical accuracy needs are a lot lower &#8211; we only want a result that looks plausible.</p>
+<p>What we are going to do for our transparency is calculate a direction that the ray is going to travel through the object, ray trace that ray to get a color, and use the transmitted light (the portion of light that isn&#8217;t reflected) as a multiplier of that color, that we add to the reflected amount of light.</p>
+<p>If we have an object with 10% reflectivity, and 90% transmittance, but use that transmitted light for transparency, we&#8217;ll have a rendering like below:</p>
+<p><img src="https://demofox2.files.wordpress.com/2017/01/transparent.png?w=800" /></p>
+<p>Now that we have transparency, let&#8217;s talk about refraction.  Refraction is a physical phenomenon where light bends (&#8220;changes speed&#8221; i guess but that sounds a bit suspicious for light), as it hits a boundary between two different surfaces.</p>
+<p>Every material has a refractive index, and in fact, may have different refractive indices per light frequency.  For our purposes, we&#8217;ll assume surfaces have the same refractive index for every frequency of light.  There&#8217;s a list of refractive indices for a lot of different materials here: <a href="http://hyperphysics.phy-astr.gsu.edu/hbase/Tables/indrf.html" target="_blank">Index of refraction</a></p>
+<p>How a ray bends when it refracts depends on the ration of the refractive index that it&#8217;s leaving to the refractive index that it&#8217;s entering.  AKA outside/inside.</p>
+<p>HLSL and GLSL have a function called refract which take the incident vector, the surface normal vector, and that ration of refractive indices, and return the refracted ray.</p>
+<p>When you do a raytrace down the refracted ray, you will have the same problem as when tracing the reflected ray, that you may hit the same surface you just hit again erroneously.  To help that, you once again just move the ray slightly away from the surface.</p>
+<p><img src="https://s0.wp.com/latex.php?latex=RefractRayLocation+%3D+RefractRayLocation+%2B+RefractRayDirection+%2A+0.01&#038;bg=ffffff&#038;fg=666666&#038;s=0&#038;c=20201002" srcset="https://s0.wp.com/latex.php?latex=RefractRayLocation+%3D+RefractRayLocation+%2B+RefractRayDirection+%2A+0.01&#038;bg=ffffff&#038;fg=666666&#038;s=0&#038;c=20201002 1x, https://s0.wp.com/latex.php?latex=RefractRayLocation+%3D+RefractRayLocation+%2B+RefractRayDirection+%2A+0.01&#038;bg=ffffff&#038;fg=666666&#038;s=0&#038;c=20201002&#038;zoom=4.5 4x" alt="RefractRayLocation = RefractRayLocation + RefractRayDirection * 0.01" class="latex" /></p>
+<p>Here is a rendering where the sphere has 10% reflectivity, 90% transmittance, an air refractive index of 1.0, and a refractive index of 1.125 for the sphere.  You can see how the light bends as it goes through the object and looks pretty neat!<br />
+<img src="https://demofox2.files.wordpress.com/2017/01/refract.png?w=800" /> </p>
+<h1>Fresnel</h1>
+<p>There is an interesting property in our world: If you look at something straight on, it&#8217;s the least reflective it will be.  If you turn it nearly 90 degrees where it&#8217;s nearly edge on, it will be the most reflective it can be.  Many surfaces will become almost perfectly reflective when you view them almost edge on.  Go try it out with a wall in your house or a glass or other things.</p>
+<p>Weird huh? That&#8217;s called Fresnel, and is something we can also make use of in ray tracing to get a more realistic image.</p>
+<p>Instead of just always using the reflectivity amount of the surface, we use the Fresnel equation to figure out how much reflectivity an object should have based on the view angle versus the surface normal, so that when it&#8217;s more edge on it becomes more reflective.  At minimum the reflectivity will be the reflectivity of the surface, and at maximum the reflectivity will be 100%.</p>
+<p>The amount we transmit for either refraction or diffuse will be 100% minus however much percentage is reflective.</p>
+<p>Here is the image showing normal reflection again:<br />
+<img src="https://demofox2.files.wordpress.com/2017/01/reflect.png?w=800" /> </p>
+<p>Here is the image with Fresnel:<br />
+<img src="https://demofox2.files.wordpress.com/2017/01/fresnel.png?w=800" /></p>
+<p>It looks quite a bit better with fresnel doesn&#8217;t it?!</p>
+<p>Here&#8217;s a GLSL function of Schlick&#8217;s Fresnel approximation function.  Notice that it takes the surface normal and incident vector, as well as the refractive index being left (n1) and the refractive index being entered (n2):</p>
+<pre class="brush: cpp; title: ; notranslate" title="">
+float FresnelReflectAmount (float n1, float n2, vec3 normal, vec3 incident)
+{
+        // Schlick aproximation
+        float r0 = (n1-n2) / (n1+n2);
+        r0 *= r0;
+        float cosX = -dot(normal, incident);
+        if (n1 &gt; n2)
+        {
+            float n = n1/n2;
+            float sinT2 = n*n*(1.0-cosX*cosX);
+            // Total internal reflection
+            if (sinT2 &gt; 1.0)
+                return 1.0;
+            cosX = sqrt(1.0-sinT2);
+        }
+        float x = 1.0-cosX;
+        float ret = r0+(1.0-r0)*x*x*x*x*x;
+
+        // adjust reflect multiplier for object reflectivity
+        ret = (OBJECT_REFLECTIVITY + (1.0-OBJECT_REFLECTIVITY) * ret);
+        return ret;
+}
+</pre>
+<p>Our tale of reflection is complete, so let&#8217;s go back to refraction / transparency and finish up the last two items.</p>
+<h1>Total Internal Reflection</h1>
+<p>The way that the Fresnel equation works, it&#8217;s possible that when moving from a material with a higher index of refraction to a lower one, that the amount of refraction can actually drop to zero percent.  In this case, the light doesn&#8217;t exit the higher refractive index object and instead ONLY reflects back into the object, because the reflective amount becomes 100%.</p>
+<p>When this happens, it&#8217;s called &#8220;Total Internal Reflection&#8221; for hopefully obvious reasons (:</p>
+<p>There isn&#8217;t a whole lot to say about this, because you can see that this is even accounted for in the GLSL Fresnel function from the last section.</p>
+<p>However, if you are ever under water in a swimming pool and look up to see the water surface looking like a mirror, that is total internal reflection in action.</p>
+<p>You can also see it in the render below, where you can see reflections on the inside of the walls of the object, especially on the bottom (floor) of the object:<br />
+<img src="https://demofox2.files.wordpress.com/2017/01/tir.png?w=800" /></p>
+<h1>Beer&#8217;s Law</h1>
+<p>Beer&#8217;s law is the last item to talk about, and relates to transparent surfaces.  Beer&#8217;s law deals with light being absorbed over distance as it travels through a material.</p>
+<p>Beer&#8217;s law is why a thin piece of jello is mostly colorless, but a thicker piece of jello has a much richer and deeper color.</p>
+<p>Here&#8217;s a cube with beer&#8217;s law absorbing red and green light over distance.  You should notice that where the light travels less distance through the cube that it&#8217;s not as blue, because not as much red and green light has been absorbed:<br />
+<img src="https://demofox2.files.wordpress.com/2017/01/beerslaw.png?w=800" /></p>
+<p>To apply beer&#8217;s law, you first figure out how long a ray has traveled through the absorbing material (by tracing the ray inside the object to see where it hits the back side).  You then do this calculation:</p>
+<pre class="brush: cpp; title: ; notranslate" title="">
+vec3 color = RayTrace(rayPos, rayDir);
+vec3 absorb = exp(-OBJECT_ABSORB * absorbDistance);
+color *= absorb;
+</pre>
+<p>OBJECT_ABSORB is an RGB value that describes how much of each color channel absorbs over distance.  For example, a value of (8.0, 2.0, 0.1) would make red get absorbed the fastest, then green, then blue, so would result in a blueish, slightly green color object.</p>
+<h1>Putting it All Together</h1>
+<p>Now that we have the individual components worked out let&#8217;s talk about how to put it together.</p>
+<p>Firstly, when a ray hits any surface, you need to use the Fresnel equation to get the multiplier for the reflected and transmitted light.</p>
+<p>Next you calculate the reflected and transmitted light by recursively raytracing.  The transmitted light is either used for the diffuse shading, the transparency/refracted ray, or some combination of those two (technically, it&#8217;s all up to the BSDF we are approximating).</p>
+<p>Then, you multiply the reflected light by the reflected amount from the Fresnel equation, and the transmitted amount by 100%-reflectionAmount and add the results together.</p>
+<p>(Quick side note, if you have emissive color on the surface aka the object glows, you would also add that in here).</p>
+<p>Since raytracing is recursive, you would do this each time a ray intersected with an object.  In other words, each intersection causes the ray to split into two rays.</p>
+<p>As you can imagine, this can make the rendering quite complex, especially on the GPU where you can&#8217;t even do real recursion.</p>
+<p>One way to help limit the recursiveness a bit is when you are calculating your reflection and transmittance amounts, you can choose a threshold like say 1% where if the reflection is under 1% it clamps it to 0%, and if it&#8217;s greater than 99% it clamps it at 100%.  You can then choose not to recurse down a specific ray if the ray&#8217;s multiplier is 0.  The end result will be that reflections or transmittance rays that don&#8217;t contribute much to the end result won&#8217;t be followed at all.</p>
+<p>If you are willing to sacrifice some visual quality to not have to split your ray into two at each object intersection, you could also figure out if reflection or transmittance has the higher multiplier, and make the ray only follow one of the paths.  If you were doing this in a path tracer, you could choose which one to follow randomly, using the multiplier as a weight for the random selection.</p>
+<p>The problem in both of these two optimizations is that the multiplier is only half of the information though so may incorrectly choose the less meaningful contribution.  The other half of the information is the color of the ray if you followed it.  The reason for this is that you might have a low multiplier for a really bright spot (caustics have this problem commonly!), or vice versa you may have a high multiplier for a dull featureless spot.  With path tracing, if you take enough samples, it all washes out in the averages, and with ray tracing, maybe you accept that it will do the wrong thing sometimes, to stay a real time algorithm, but it&#8217;s important to know how this type of choice can fail for you.  (Side note, this sort of stuff is what importance sampling in path tracing is all about &#8211; trying to make rays follow more meaningful paths to get better results quicker).</p>
+<p>When doing real time raytracing you also often have to decide how many times you want to allow a ray to bounce around.  In the shadertoy that goes with this post, that parameter is MAX_RAY_BOUNCES and I have it set to 10.</p>
+<p>Interestingly, setting it to 1 has no visible impact on the sphere at all, which is a nice improvement.  For the box, a value of 3 seems to be the maximum it needs.  3 also seems to be the magic number for the geometric gem type shape.</p>
+<p>So, 10 is overkill, but i left it at that in case people play with parameters and change them to values which would require more bounces.</p>
+<p>Lastly I wanted to mention that in the scene that I rendered, I did a small &#8220;trick&#8221; to make it so I didn&#8217;t need to do full recursive splitting of rays at each intersection.  I did this by making it so the main object in the center of the scene was the only object that had reflection.</p>
+<p>This way, I only need to split the ray into two if i hit the main object.  Furthermore, when I&#8217;m splitting the ray at the main object, the ray that gets the color for the outside world (versus the inside of the object) is a single non recursive ray cast since it can&#8217;t hit anything reflective.  The result is that at each intersection of the sphere, i do a simple non recursive ray cast for the ray that is going outside of the main object, then i continue the iterative ray on the inside of the object until i run out of bounces.</p>
+<p>Doing this causes a recursive process to become an iterative one, which is much friendlier on the gpu.</p>
+<p>Below is the final render again from the shadertoy.  The parameters are:</p>
+<ul>
+<li>The refractive index of the air is 1.00029</li>
+<li>The refractive index inside the objects are 1.125</li>
+<li>Reflectivity is 1%</li>
+<li>The absorption for beers law is (8.0, 8.0, 3.0)</li>
+</ul>
+<p><img src="https://demofox2.files.wordpress.com/2017/01/shadertoy.png?w=800" /></p>
+<h1>Links</h1>
+<p><a href="https://www.shadertoy.com/view/4tyXDR" target="_blank">Shadertoy: Reflect Refract TIR Fresnel RayT</a><br />
+<a href="https://graphics.stanford.edu/courses/cs148-10-summer/docs/2006--degreve--reflection_refraction.pdf" target="_blank">Reflections and Refractions in Ray Tracing</a><br />
+<a href="https://blog.demofox.org/2016/09/21/path-tracing-getting-started-with-diffuse-and-emissive/" target="_blank">Path Tracing – Getting Started With Diffuse and Emissive</a></p>
+<div id="jp-post-flair" class="sharedaddy sd-like-enabled sd-sharing-enabled"><div class="sharedaddy sd-sharing-enabled"><div class="robots-nocontent sd-block sd-social sd-social-icon-text sd-sharing"><h3 class="sd-title">Share this:</h3><div class="sd-content"><ul><li class="share-twitter"><a rel="nofollow noopener noreferrer" data-shared="sharing-twitter-7951" class="share-twitter sd-button share-icon" href="https://blog.demofox.org/2017/01/09/raytracing-reflection-refraction-fresnel-total-internal-reflection-and-beers-law/?share=twitter" target="_blank" title="Click to share on Twitter" ><span>Twitter</span></a></li><li class="share-facebook"><a rel="nofollow noopener noreferrer" data-shared="sharing-facebook-7951" class="share-facebook sd-button share-icon" href="https://blog.demofox.org/2017/01/09/raytracing-reflection-refraction-fresnel-total-internal-reflection-and-beers-law/?share=facebook" target="_blank" title="Click to share on Facebook" ><span>Facebook</span></a></li><li class="share-end"></li></ul></div></div></div><div class='sharedaddy sd-block sd-like jetpack-likes-widget-wrapper jetpack-likes-widget-unloaded' id='like-post-wrapper-129449992-7951-6334d650e3da0' data-src='//widgets.wp.com/likes/index.html?ver=20220105#blog_id=129449992&amp;post_id=7951&amp;origin=demofox2.wordpress.com&amp;obj_id=129449992-7951-6334d650e3da0&amp;domain=blog.demofox.org' data-name='like-post-frame-129449992-7951-6334d650e3da0' data-title='Like or Reblog'><h3 class='sd-title'>Like this:</h3><div class='likes-widget-placeholder post-likes-widget-placeholder' style='height: 55px;'><span class='button'><span>Like</span></span> <span class="loading">Loading...</span></div><span class='sd-text-color'></span><a class='sd-link-color'></a></div>
+<div id='jp-relatedposts' class='jp-relatedposts' >
+	<h3 class="jp-relatedposts-headline"><em>Related</em></h3>
+</div></div>			</div><!-- .entry-content -->
+	
+		<div class="entry-meta">
+		This entry was posted in <a href="https://blog.demofox.org/category/graphics/" rel="category tag">Graphics</a>, <a href="https://blog.demofox.org/category/math/" rel="category tag">Math</a>, <a href="https://blog.demofox.org/category/ray-tracing/" rel="category tag">Ray Tracing</a>, <a href="https://blog.demofox.org/category/shadertoy/" rel="category tag">Shadertoy</a>. Bookmark the <a href="https://blog.demofox.org/2017/01/09/raytracing-reflection-refraction-fresnel-total-internal-reflection-and-beers-law/" title="Permalink to Raytracing Reflection, Refraction, Fresnel, Total Internal Reflection, and Beer&#8217;s&nbsp;Law" rel="bookmark">permalink</a>.	</div><!-- .entry-meta -->
+	
+</article><!-- #post-7951 -->
+					<nav role="navigation" id="nav-below" class="site-navigation clearfix post-navigation">
+		<h1 class="assistive-text">Post navigation</h1>
+
+	
+		<div class="nav-previous"><a href="https://blog.demofox.org/2017/01/02/incremental-least-squares-surface-and-hyper-volume-fitting/" rel="prev"><span class="meta-nav">&larr;</span> Incremental Least Squares Surface and Hyper-Volume&nbsp;Fitting</a></div>		<div class="nav-next"><a href="https://blog.demofox.org/2017/01/24/my-old-master-how-to-correct-as-a-mentor-or-a-teacher/" rel="next">My Old Master: How to Correct as a Mentor or a&nbsp;Teacher <span class="meta-nav">&rarr;</span></a></div>
+	
+	</nav><!-- #nav-below -->
+	
+				
+			
+			</div><!-- #content .site-content -->
+		</div><!-- #primary .content-area -->
+
+
+<div id="secondary" class="widgets clearfix">
+		<div id="first" class="widget-area" role="complementary">
+		<aside id="search-1" class="widget widget_search">	<form method="get" id="searchform" action="https://blog.demofox.org/" role="search">
+		<label for="s" class="assistive-text">Search</label>
+		<input type="text" class="field" name="s" value="" id="s" placeholder="Search &hellip;" />
+		<input type="submit" class="submit noticon-search" name="submit" id="searchsubmit" value="S" />
+	</form>
+</aside><aside id="archives-4" class="widget widget_archive"><h1 class="widget-title">Archives</h1>
+			<ul>
+					<li><a href='https://blog.demofox.org/2022/08/'>August 2022</a>&nbsp;(1)</li>
+	<li><a href='https://blog.demofox.org/2022/07/'>July 2022</a>&nbsp;(4)</li>
+	<li><a href='https://blog.demofox.org/2022/06/'>June 2022</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2022/03/'>March 2022</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2022/02/'>February 2022</a>&nbsp;(4)</li>
+	<li><a href='https://blog.demofox.org/2022/01/'>January 2022</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2021/12/'>December 2021</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2021/07/'>July 2021</a>&nbsp;(1)</li>
+	<li><a href='https://blog.demofox.org/2021/06/'>June 2021</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2021/04/'>April 2021</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2020/11/'>November 2020</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2020/10/'>October 2020</a>&nbsp;(1)</li>
+	<li><a href='https://blog.demofox.org/2020/07/'>July 2020</a>&nbsp;(3)</li>
+	<li><a href='https://blog.demofox.org/2020/06/'>June 2020</a>&nbsp;(4)</li>
+	<li><a href='https://blog.demofox.org/2020/05/'>May 2020</a>&nbsp;(4)</li>
+	<li><a href='https://blog.demofox.org/2020/03/'>March 2020</a>&nbsp;(4)</li>
+	<li><a href='https://blog.demofox.org/2020/02/'>February 2020</a>&nbsp;(1)</li>
+	<li><a href='https://blog.demofox.org/2020/01/'>January 2020</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2019/12/'>December 2019</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2019/10/'>October 2019</a>&nbsp;(1)</li>
+	<li><a href='https://blog.demofox.org/2019/08/'>August 2019</a>&nbsp;(1)</li>
+	<li><a href='https://blog.demofox.org/2019/07/'>July 2019</a>&nbsp;(1)</li>
+	<li><a href='https://blog.demofox.org/2019/06/'>June 2019</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2019/05/'>May 2019</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2019/03/'>March 2019</a>&nbsp;(1)</li>
+	<li><a href='https://blog.demofox.org/2018/11/'>November 2018</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2018/08/'>August 2018</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2018/07/'>July 2018</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2018/06/'>June 2018</a>&nbsp;(3)</li>
+	<li><a href='https://blog.demofox.org/2018/04/'>April 2018</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2018/03/'>March 2018</a>&nbsp;(4)</li>
+	<li><a href='https://blog.demofox.org/2018/01/'>January 2018</a>&nbsp;(1)</li>
+	<li><a href='https://blog.demofox.org/2017/12/'>December 2017</a>&nbsp;(1)</li>
+	<li><a href='https://blog.demofox.org/2017/11/'>November 2017</a>&nbsp;(4)</li>
+	<li><a href='https://blog.demofox.org/2017/10/'>October 2017</a>&nbsp;(4)</li>
+	<li><a href='https://blog.demofox.org/2017/09/'>September 2017</a>&nbsp;(1)</li>
+	<li><a href='https://blog.demofox.org/2017/08/'>August 2017</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2017/07/'>July 2017</a>&nbsp;(4)</li>
+	<li><a href='https://blog.demofox.org/2017/06/'>June 2017</a>&nbsp;(1)</li>
+	<li><a href='https://blog.demofox.org/2017/05/'>May 2017</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2017/04/'>April 2017</a>&nbsp;(1)</li>
+	<li><a href='https://blog.demofox.org/2017/03/'>March 2017</a>&nbsp;(5)</li>
+	<li><a href='https://blog.demofox.org/2017/02/'>February 2017</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2017/01/'>January 2017</a>&nbsp;(3)</li>
+	<li><a href='https://blog.demofox.org/2016/12/'>December 2016</a>&nbsp;(5)</li>
+	<li><a href='https://blog.demofox.org/2016/11/'>November 2016</a>&nbsp;(1)</li>
+	<li><a href='https://blog.demofox.org/2016/10/'>October 2016</a>&nbsp;(3)</li>
+	<li><a href='https://blog.demofox.org/2016/09/'>September 2016</a>&nbsp;(3)</li>
+	<li><a href='https://blog.demofox.org/2016/08/'>August 2016</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2016/07/'>July 2016</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2016/06/'>June 2016</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2016/05/'>May 2016</a>&nbsp;(1)</li>
+	<li><a href='https://blog.demofox.org/2016/04/'>April 2016</a>&nbsp;(3)</li>
+	<li><a href='https://blog.demofox.org/2016/03/'>March 2016</a>&nbsp;(4)</li>
+	<li><a href='https://blog.demofox.org/2016/02/'>February 2016</a>&nbsp;(6)</li>
+	<li><a href='https://blog.demofox.org/2016/01/'>January 2016</a>&nbsp;(1)</li>
+	<li><a href='https://blog.demofox.org/2015/12/'>December 2015</a>&nbsp;(3)</li>
+	<li><a href='https://blog.demofox.org/2015/11/'>November 2015</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2015/10/'>October 2015</a>&nbsp;(3)</li>
+	<li><a href='https://blog.demofox.org/2015/09/'>September 2015</a>&nbsp;(5)</li>
+	<li><a href='https://blog.demofox.org/2015/08/'>August 2015</a>&nbsp;(7)</li>
+	<li><a href='https://blog.demofox.org/2015/07/'>July 2015</a>&nbsp;(3)</li>
+	<li><a href='https://blog.demofox.org/2015/06/'>June 2015</a>&nbsp;(3)</li>
+	<li><a href='https://blog.demofox.org/2015/05/'>May 2015</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2015/04/'>April 2015</a>&nbsp;(6)</li>
+	<li><a href='https://blog.demofox.org/2015/03/'>March 2015</a>&nbsp;(6)</li>
+	<li><a href='https://blog.demofox.org/2015/02/'>February 2015</a>&nbsp;(6)</li>
+	<li><a href='https://blog.demofox.org/2015/01/'>January 2015</a>&nbsp;(3)</li>
+	<li><a href='https://blog.demofox.org/2014/12/'>December 2014</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2014/11/'>November 2014</a>&nbsp;(1)</li>
+	<li><a href='https://blog.demofox.org/2014/08/'>August 2014</a>&nbsp;(5)</li>
+	<li><a href='https://blog.demofox.org/2014/07/'>July 2014</a>&nbsp;(1)</li>
+	<li><a href='https://blog.demofox.org/2014/06/'>June 2014</a>&nbsp;(2)</li>
+	<li><a href='https://blog.demofox.org/2014/05/'>May 2014</a>&nbsp;(1)</li>
+	<li><a href='https://blog.demofox.org/2014/03/'>March 2014</a>&nbsp;(3)</li>
+	<li><a href='https://blog.demofox.org/2014/02/'>February 2014</a>&nbsp;(3)</li>
+	<li><a href='https://blog.demofox.org/2014/01/'>January 2014</a>&nbsp;(3)</li>
+	<li><a href='https://blog.demofox.org/2013/11/'>November 2013</a>&nbsp;(1)</li>
+	<li><a href='https://blog.demofox.org/2013/10/'>October 2013</a>&nbsp;(1)</li>
+	<li><a href='https://blog.demofox.org/2013/09/'>September 2013</a>&nbsp;(3)</li>
+	<li><a href='https://blog.demofox.org/2013/07/'>July 2013</a>&nbsp;(4)</li>
+	<li><a href='https://blog.demofox.org/2013/06/'>June 2013</a>&nbsp;(4)</li>
+	<li><a href='https://blog.demofox.org/2013/05/'>May 2013</a>&nbsp;(5)</li>
+	<li><a href='https://blog.demofox.org/2012/11/'>November 2012</a>&nbsp;(1)</li>
+	<li><a href='https://blog.demofox.org/2012/10/'>October 2012</a>&nbsp;(1)</li>
+	<li><a href='https://blog.demofox.org/2012/09/'>September 2012</a>&nbsp;(11)</li>
+	<li><a href='https://blog.demofox.org/2012/06/'>June 2012</a>&nbsp;(1)</li>
+	<li><a href='https://blog.demofox.org/2012/05/'>May 2012</a>&nbsp;(3)</li>
+			</ul>
+
+			</aside><aside id="categories-3" class="widget widget_categories"><h1 class="widget-title">Categories</h1>
+			<ul>
+					<li class="cat-item cat-item-6595"><a href="https://blog.demofox.org/category/assembly/">assembly</a> (1)
+</li>
+	<li class="cat-item cat-item-9568794"><a href="https://blog.demofox.org/category/audio-synthesis/">Audio Synthesis</a> (19)
+</li>
+	<li class="cat-item cat-item-2426"><a href="https://blog.demofox.org/category/c/">C++</a> (98)
+</li>
+	<li class="cat-item cat-item-93856"><a href="https://blog.demofox.org/category/coding-style/">Coding Style</a> (2)
+</li>
+	<li class="cat-item cat-item-5043"><a href="https://blog.demofox.org/category/computer-science/">Computer Science</a> (74)
+</li>
+	<li class="cat-item cat-item-25818"><a href="https://blog.demofox.org/category/cryptography/">Cryptography</a> (15)
+</li>
+	<li class="cat-item cat-item-28629"><a href="https://blog.demofox.org/category/dsp/">DSP</a> (1)
+</li>
+	<li class="cat-item cat-item-105478"><a href="https://blog.demofox.org/category/encryption-security/">Encryption + Security</a> (9)
+</li>
+	<li class="cat-item cat-item-69836"><a href="https://blog.demofox.org/category/fractals/">Fractals</a> (2)
+</li>
+	<li class="cat-item cat-item-12157"><a href="https://blog.demofox.org/category/game-development/">Game Development</a> (97)
+</li>
+	<li class="cat-item cat-item-359331259"><a href="https://blog.demofox.org/category/gamedev-commentary/">Gamedev Commentary</a> (4)
+</li>
+	<li class="cat-item cat-item-658"><a href="https://blog.demofox.org/category/graphics/">Graphics</a> (87)
+</li>
+	<li class="cat-item cat-item-2813"><a href="https://blog.demofox.org/category/math/">Math</a> (90)
+</li>
+	<li class="cat-item cat-item-577710946"><a href="https://blog.demofox.org/category/my-old-master/">My Old Master</a> (2)
+</li>
+	<li class="cat-item cat-item-214925"><a href="https://blog.demofox.org/category/network-programming/">Network Programming</a> (1)
+</li>
+	<li class="cat-item cat-item-65146"><a href="https://blog.demofox.org/category/neural-networks/">Neural Networks</a> (6)
+</li>
+	<li class="cat-item cat-item-1035"><a href="https://blog.demofox.org/category/other/">Other</a> (1)
+</li>
+	<li class="cat-item cat-item-12271201"><a href="https://blog.demofox.org/category/path-tracing/">Path Tracing</a> (1)
+</li>
+	<li class="cat-item cat-item-184445"><a href="https://blog.demofox.org/category/people-skills/">People Skills</a> (6)
+</li>
+	<li class="cat-item cat-item-79583"><a href="https://blog.demofox.org/category/quantum-computing/">Quantum Computing</a> (4)
+</li>
+	<li class="cat-item cat-item-1291418"><a href="https://blog.demofox.org/category/ray-tracing/">Ray Tracing</a> (16)
+</li>
+	<li class="cat-item cat-item-668"><a href="https://blog.demofox.org/category/research/">Research</a> (13)
+</li>
+	<li class="cat-item cat-item-234575772"><a href="https://blog.demofox.org/category/shadertoy/">Shadertoy</a> (10)
+</li>
+	<li class="cat-item cat-item-8506262"><a href="https://blog.demofox.org/category/skeletal-animation/">Skeletal Animation</a> (3)
+</li>
+	<li class="cat-item cat-item-1"><a href="https://blog.demofox.org/category/uncategorized/">Uncategorized</a> (47)
+</li>
+			</ul>
+
+			</aside><aside id="tag_cloud-3" class="widget widget_tag_cloud"><h1 class="widget-title">Category Cloud</h1><div style="overflow: hidden;"><a href="https://blog.demofox.org/category/assembly/" style="font-size: 100%; padding: 1px; margin: 1px;"  title="assembly (1)">assembly</a> <a href="https://blog.demofox.org/category/audio-synthesis/" style="font-size: 132.47422680412%; padding: 1px; margin: 1px;"  title="Audio Synthesis (19)">Audio Synthesis</a> <a href="https://blog.demofox.org/category/c/" style="font-size: 275%; padding: 1px; margin: 1px;"  title="C++ (98)">C++</a> <a href="https://blog.demofox.org/category/coding-style/" style="font-size: 101.80412371134%; padding: 1px; margin: 1px;"  title="Coding Style (2)">Coding Style</a> <a href="https://blog.demofox.org/category/computer-science/" style="font-size: 231.70103092784%; padding: 1px; margin: 1px;"  title="Computer Science (74)">Computer Science</a> <a href="https://blog.demofox.org/category/cryptography/" style="font-size: 125.25773195876%; padding: 1px; margin: 1px;"  title="Cryptography (15)">Cryptography</a> <a href="https://blog.demofox.org/category/dsp/" style="font-size: 100%; padding: 1px; margin: 1px;"  title="DSP (1)">DSP</a> <a href="https://blog.demofox.org/category/encryption-security/" style="font-size: 114.43298969072%; padding: 1px; margin: 1px;"  title="Encryption + Security (9)">Encryption + Security</a> <a href="https://blog.demofox.org/category/fractals/" style="font-size: 101.80412371134%; padding: 1px; margin: 1px;"  title="Fractals (2)">Fractals</a> <a href="https://blog.demofox.org/category/gamedev-commentary/" style="font-size: 105.41237113402%; padding: 1px; margin: 1px;"  title="Gamedev Commentary (4)">Gamedev Commentary</a> <a href="https://blog.demofox.org/category/game-development/" style="font-size: 273.19587628866%; padding: 1px; margin: 1px;"  title="Game Development (97)">Game Development</a> <a href="https://blog.demofox.org/category/graphics/" style="font-size: 255.15463917526%; padding: 1px; margin: 1px;"  title="Graphics (87)">Graphics</a> <a href="https://blog.demofox.org/category/math/" style="font-size: 260.56701030928%; padding: 1px; margin: 1px;"  title="Math (90)">Math</a> <a href="https://blog.demofox.org/category/my-old-master/" style="font-size: 101.80412371134%; padding: 1px; margin: 1px;"  title="My Old Master (2)">My Old Master</a> <a href="https://blog.demofox.org/category/network-programming/" style="font-size: 100%; padding: 1px; margin: 1px;"  title="Network Programming (1)">Network Programming</a> <a href="https://blog.demofox.org/category/neural-networks/" style="font-size: 109.0206185567%; padding: 1px; margin: 1px;"  title="Neural Networks (6)">Neural Networks</a> <a href="https://blog.demofox.org/category/other/" style="font-size: 100%; padding: 1px; margin: 1px;"  title="Other (1)">Other</a> <a href="https://blog.demofox.org/category/path-tracing/" style="font-size: 100%; padding: 1px; margin: 1px;"  title="Path Tracing (1)">Path Tracing</a> <a href="https://blog.demofox.org/category/people-skills/" style="font-size: 109.0206185567%; padding: 1px; margin: 1px;"  title="People Skills (6)">People Skills</a> <a href="https://blog.demofox.org/category/quantum-computing/" style="font-size: 105.41237113402%; padding: 1px; margin: 1px;"  title="Quantum Computing (4)">Quantum Computing</a> <a href="https://blog.demofox.org/category/ray-tracing/" style="font-size: 127.0618556701%; padding: 1px; margin: 1px;"  title="Ray Tracing (16)">Ray Tracing</a> <a href="https://blog.demofox.org/category/research/" style="font-size: 121.64948453608%; padding: 1px; margin: 1px;"  title="Research (13)">Research</a> <a href="https://blog.demofox.org/category/shadertoy/" style="font-size: 116.23711340206%; padding: 1px; margin: 1px;"  title="Shadertoy (10)">Shadertoy</a> <a href="https://blog.demofox.org/category/skeletal-animation/" style="font-size: 103.60824742268%; padding: 1px; margin: 1px;"  title="Skeletal Animation (3)">Skeletal Animation</a> <a href="https://blog.demofox.org/category/uncategorized/" style="font-size: 182.98969072165%; padding: 1px; margin: 1px;"  title="Uncategorized (47)">Uncategorized</a> </div></aside>	</div><!-- #first .widget-area -->
+	
+		<div id="second" class="widget-area" role="complementary">
+		
+		<aside id="recent-posts-1" class="widget widget_recent_entries">
+		<h1 class="widget-title">Recent Posts</h1>
+		<ul>
+											<li>
+					<a href="https://blog.demofox.org/2022/08/09/calculating-discrete-sums-with-umbral-calculus/">Calculating Discrete Sums With Umbral&nbsp;Calculus</a>
+											<span class="post-date">August 9, 2022</span>
+									</li>
+											<li>
+					<a href="https://blog.demofox.org/2022/07/27/calculating-the-similarity-of-histograms-or-pdfs-using-the-p-wasserstein-distance/">Calculating the Similarity of Histograms or PDFs &amp; Interpolating Them Using the p-Wasserstein&nbsp;Distance</a>
+											<span class="post-date">July 27, 2022</span>
+									</li>
+											<li>
+					<a href="https://blog.demofox.org/2022/07/21/rounding-modes-for-integer-division/">Rounding Modes For Integer&nbsp;Division</a>
+											<span class="post-date">July 21, 2022</span>
+									</li>
+											<li>
+					<a href="https://blog.demofox.org/2022/07/12/calculating-svd-and-pca-in-c/">Calculating SVD and PCA in&nbsp;C++</a>
+											<span class="post-date">July 12, 2022</span>
+									</li>
+											<li>
+					<a href="https://blog.demofox.org/2022/07/10/programming-pca-from-scratch-in-c/">Programming PCA From Scratch In&nbsp;C++</a>
+											<span class="post-date">July 10, 2022</span>
+									</li>
+					</ul>
+
+		</aside>	</div><!-- #second .widget-area -->
+	
+		</div><!-- #secondary .widget-area -->
+
+	</div><!-- #main .site-main -->
+
+	<footer id="colophon" class="site-footer" role="contentinfo">
+		<div class="site-info">
+						<span class="credits">
+				<a href="https://wordpress.com/?ref=footer_custom_svg" title="Create a website or blog at WordPress.com" rel="nofollow"><svg style="fill: currentColor; position: relative; top: 1px;" width="14px" height="15px" viewBox="0 0 14 15" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-labelledby="title" role="img">
+				<desc id="title">Create a website or blog at WordPress.com</desc>
+				<path d="M12.5225848,4.97949746 C13.0138466,5.87586309 13.2934037,6.90452431 13.2934037,7.99874074 C13.2934037,10.3205803 12.0351007,12.3476807 10.1640538,13.4385638 L12.0862862,7.88081544 C12.4453251,6.98296834 12.5648813,6.26504621 12.5648813,5.62667922 C12.5648813,5.39497674 12.549622,5.17994084 12.5225848,4.97949746 L12.5225848,4.97949746 Z M7.86730089,5.04801561 C8.24619178,5.02808979 8.58760099,4.98823815 8.58760099,4.98823815 C8.9267139,4.94809022 8.88671369,4.44972248 8.54745263,4.46957423 C8.54745263,4.46957423 7.52803983,4.54957381 6.86996227,4.54957381 C6.25158863,4.54957381 5.21247202,4.46957423 5.21247202,4.46957423 C4.87306282,4.44972248 4.83328483,4.96816418 5.17254589,4.98823815 C5.17254589,4.98823815 5.49358462,5.02808979 5.83269753,5.04801561 L6.81314716,7.73459399 L5.43565839,11.8651647 L3.14394256,5.04801561 C3.52312975,5.02808979 3.86416859,4.98823815 3.86416859,4.98823815 C4.20305928,4.94809022 4.16305906,4.44972248 3.82394616,4.46957423 C3.82394616,4.46957423 2.80475558,4.54957381 2.14660395,4.54957381 C2.02852925,4.54957381 1.88934333,4.54668493 1.74156477,4.54194422 C2.86690406,2.83350881 4.80113651,1.70529256 6.99996296,1.70529256 C8.638342,1.70529256 10.1302017,2.33173369 11.2498373,3.35765419 C11.222726,3.35602457 11.1962815,3.35261718 11.1683554,3.35261718 C10.5501299,3.35261718 10.1114609,3.89113285 10.1114609,4.46957423 C10.1114609,4.98823815 10.4107217,5.42705065 10.7296864,5.94564049 C10.969021,6.36482346 11.248578,6.90326506 11.248578,7.68133501 C11.248578,8.21992476 11.0413918,8.84503256 10.7696866,9.71584277 L10.1417574,11.8132391 L7.86730089,5.04801561 Z M6.99996296,14.2927074 C6.38218192,14.2927074 5.78595654,14.2021153 5.22195356,14.0362644 L7.11048207,8.54925635 L9.04486267,13.8491542 C9.05760348,13.8802652 9.07323319,13.9089317 9.08989995,13.9358945 C8.43574834,14.1661896 7.73285573,14.2927074 6.99996296,14.2927074 L6.99996296,14.2927074 Z M0.706448182,7.99874074 C0.706448182,7.08630113 0.902152921,6.22015756 1.25141403,5.43749503 L4.25357806,13.6627848 C2.15393732,12.6427902 0.706448182,10.4898387 0.706448182,7.99874074 L0.706448182,7.99874074 Z M6.99996296,0.999 C3.14016476,0.999 0,4.13905746 0,7.99874074 C0,11.8585722 3.14016476,14.999 6.99996296,14.999 C10.8596871,14.999 14,11.8585722 14,7.99874074 C14,4.13905746 10.8596871,0.999 6.99996296,0.999 L6.99996296,0.999 Z" id="wordpress-logo-simplified-cmyk" stroke="none" fill=“currentColor” fill-rule="evenodd"></path>
+			</svg></a>
+				
+							</span>
+		</div><!-- .site-info -->
+	</footer><!-- #colophon .site-footer -->
+</div><!-- #page .hfeed .site -->
+
+<!--  -->
+<script type="text/javascript">
+	window._tkq = window._tkq || [];
+	if ( Math.random() < 0.01 ) {
+		window._tkq.push( [
+			'recordEvent',
+			'wpcom_wordads_noad',
+			{"theme":"pub\/widely","blog_id":129449992,"post_id":7951,"reason_noadverts_plugin":1,"reason_upgrade":1,"reason_blog_null":1,"reason_post_null":1}
+		] );
+	}
+</script><script src='//0.gravatar.com/js/gprofiles.js?ver=202239z' id='grofiles-cards-js'></script>
+<script id='wpgroho-js-extra'>
+var WPGroHo = {"my_hash":""};
+</script>
+<script crossorigin='anonymous' type='text/javascript' src='https://s0.wp.com/wp-content/mu-plugins/gravatar-hovercards/wpgroho.js?m=1610363240h'></script>
+
+	<script>
+		// Initialize and attach hovercards to all gravatars
+		( function() {
+			function init() {
+				if ( typeof Gravatar === 'undefined' ) {
+					return;
+				}
+
+				if ( typeof Gravatar.init !== 'function' ) {
+					return;
+				}
+
+				Gravatar.profile_cb = function ( hash, id ) {
+					WPGroHo.syncProfileData( hash, id );
+				};
+
+				Gravatar.my_hash = WPGroHo.my_hash;
+				Gravatar.init( 'body', '#wp-admin-bar-my-account' );
+			}
+
+			if ( document.readyState !== 'loading' ) {
+				init();
+			} else {
+				document.addEventListener( 'DOMContentLoaded', init );
+			}
+		} )();
+	</script>
+
+		<div style="display:none">
+	</div>
+	<div id="actionbar" style="display: none;"
+			class="actnbr-pub-widely actnbr-has-follow">
+		<ul>
+								<li class="actnbr-btn actnbr-hidden">
+								<a class="actnbr-action actnbr-actn-follow " href="">
+			<svg class="gridicon gridicons-reader-follow" height="24" width="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g><path d="M23 16v2h-3v3h-2v-3h-3v-2h3v-3h2v3h3zM20 2v9h-4v3h-3v4H4c-1.1 0-2-.9-2-2V2h18zM8 13v-1H4v1h4zm3-3H4v1h7v-1zm0-2H4v1h7V8zm7-4H4v2h14V4z"/></g></svg><span>Follow</span>
+		</a>
+		<a class="actnbr-action actnbr-actn-following  no-display" href="">
+			<svg class="gridicon gridicons-reader-following" height="24" width="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g><path d="M23 13.482L15.508 21 12 17.4l1.412-1.388 2.106 2.188 6.094-6.094L23 13.482zm-7.455 1.862L20 10.89V2H2v14c0 1.1.9 2 2 2h4.538l4.913-4.832 2.095 2.176zM8 13H4v-1h4v1zm3-2H4v-1h7v1zm0-2H4V8h7v1zm7-3H4V4h14v2z"/></g></svg><span>Following</span>
+		</a>
+							<div class="actnbr-popover tip tip-top-left actnbr-notice" id="follow-bubble">
+							<div class="tip-arrow"></div>
+							<div class="tip-inner actnbr-follow-bubble">
+															<ul>
+											<li class="actnbr-sitename">
+			<a href="https://blog.demofox.org">
+				<img alt='' src='https://demofox2.files.wordpress.com/2017/05/cropped-grand-teton.jpg?w=50' class='avatar avatar-50' height='50' width='50' />				The blog at the bottom of the sea			</a>
+		</li>
+										<form method="post" action="https://subscribe.wordpress.com" accept-charset="utf-8" style="display: none;">
+																						<div class="actnbr-follow-count">Join 132 other followers</div>
+																					<div>
+										<input type="email" name="email" placeholder="Enter your email address" class="actnbr-email-field" aria-label="Enter your email address" />
+										</div>
+										<input type="hidden" name="action" value="subscribe" />
+										<input type="hidden" name="blog_id" value="129449992" />
+										<input type="hidden" name="source" value="https://blog.demofox.org/2017/01/09/raytracing-reflection-refraction-fresnel-total-internal-reflection-and-beers-law/" />
+										<input type="hidden" name="sub-type" value="actionbar-follow" />
+										<input type="hidden" id="_wpnonce" name="_wpnonce" value="285d059b69" />										<div class="actnbr-button-wrap">
+											<button type="submit" value="Sign me up">
+												Sign me up											</button>
+										</div>
+									</form>
+									<li class="actnbr-login-nudge">
+										<div>
+											Already have a WordPress.com account? <a href="https://wordpress.com/log-in?redirect_to=https%3A%2F%2Fr-login.wordpress.com%2Fremote-login.php%3Faction%3Dlink%26back%3Dhttps%253A%252F%252Fblog.demofox.org%252F2017%252F01%252F09%252Fraytracing-reflection-refraction-fresnel-total-internal-reflection-and-beers-law%252F">Log in now.</a>										</div>
+									</li>
+								</ul>
+															</div>
+						</div>
+					</li>
+							<li class="actnbr-ellipsis actnbr-hidden">
+				<svg class="gridicon gridicons-ellipsis" height="24" width="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g><path d="M7 12c0 1.104-.896 2-2 2s-2-.896-2-2 .896-2 2-2 2 .896 2 2zm12-2c-1.104 0-2 .896-2 2s.896 2 2 2 2-.896 2-2-.896-2-2-2zm-7 0c-1.104 0-2 .896-2 2s.896 2 2 2 2-.896 2-2-.896-2-2-2z"/></g></svg>				<div class="actnbr-popover tip tip-top-left actnbr-more">
+					<div class="tip-arrow"></div>
+					<div class="tip-inner">
+						<ul>
+									<li class="actnbr-sitename">
+			<a href="https://blog.demofox.org">
+				<img alt='' src='https://demofox2.files.wordpress.com/2017/05/cropped-grand-teton.jpg?w=50' class='avatar avatar-50' height='50' width='50' />				The blog at the bottom of the sea			</a>
+		</li>
+								<li class="actnbr-folded-customize">
+								<a href="https://demofox2.wordpress.com/wp-admin/customize.php?url=https%3A%2F%2Fdemofox2.wordpress.com%2F2017%2F01%2F09%2Fraytracing-reflection-refraction-fresnel-total-internal-reflection-and-beers-law%2F">
+									<svg class="gridicon gridicons-customize" height="20" width="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g><path d="M2 6c0-1.505.78-3.08 2-4 0 .845.69 2 2 2 1.657 0 3 1.343 3 3 0 .386-.08.752-.212 1.09.74.594 1.476 1.19 2.19 1.81L8.9 11.98c-.62-.716-1.214-1.454-1.807-2.192C6.753 9.92 6.387 10 6 10c-2.21 0-4-1.79-4-4zm12.152 6.848l1.34-1.34c.607.304 1.283.492 2.008.492 2.485 0 4.5-2.015 4.5-4.5 0-.725-.188-1.4-.493-2.007L18 9l-2-2 3.507-3.507C18.9 3.188 18.225 3 17.5 3 15.015 3 13 5.015 13 7.5c0 .725.188 1.4.493 2.007L3 20l2 2 6.848-6.848c1.885 1.928 3.874 3.753 5.977 5.45l1.425 1.148 1.5-1.5-1.15-1.425c-1.695-2.103-3.52-4.092-5.448-5.977z"/></g></svg>									<span>Customize</span>
+								</a>
+							</li>
+																<li class="actnbr-folded-follow">
+												<a class="actnbr-action actnbr-actn-follow " href="">
+			<svg class="gridicon gridicons-reader-follow" height="24" width="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g><path d="M23 16v2h-3v3h-2v-3h-3v-2h3v-3h2v3h3zM20 2v9h-4v3h-3v4H4c-1.1 0-2-.9-2-2V2h18zM8 13v-1H4v1h4zm3-3H4v1h7v-1zm0-2H4v1h7V8zm7-4H4v2h14V4z"/></g></svg><span>Follow</span>
+		</a>
+		<a class="actnbr-action actnbr-actn-following  no-display" href="">
+			<svg class="gridicon gridicons-reader-following" height="24" width="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g><path d="M23 13.482L15.508 21 12 17.4l1.412-1.388 2.106 2.188 6.094-6.094L23 13.482zm-7.455 1.862L20 10.89V2H2v14c0 1.1.9 2 2 2h4.538l4.913-4.832 2.095 2.176zM8 13H4v-1h4v1zm3-2H4v-1h7v1zm0-2H4V8h7v1zm7-3H4V4h14v2z"/></g></svg><span>Following</span>
+		</a>
+										</li>
+																	<li class="actnbr-signup"><a href="https://wordpress.com/start/">Sign up</a></li>
+									<li class="actnbr-login"><a href="https://wordpress.com/log-in?redirect_to=https%3A%2F%2Fr-login.wordpress.com%2Fremote-login.php%3Faction%3Dlink%26back%3Dhttps%253A%252F%252Fblog.demofox.org%252F2017%252F01%252F09%252Fraytracing-reflection-refraction-fresnel-total-internal-reflection-and-beers-law%252F">Log in</a></li>
+																	<li class="actnbr-shortlink"><a href="https://wp.me/p8L9R6-24f">Copy shortlink</a></li>
+																	<li class="flb-report"><a href="http://en.wordpress.com/abuse/">Report this content</a></li>
+																	<li class="actnbr-reader">
+										<a href="https://wordpress.com/read/blogs/129449992/posts/7951">
+											View post in Reader										</a>
+									</li>
+																	<li class="actnbr-subs">
+										<a href="https://subscribe.wordpress.com/">Manage subscriptions</a>
+									</li>
+																		<li class="actnbr-fold"><a href="">Collapse this bar</a></li>
+															</ul>
+					</div>
+				</div>
+			</li>
+		</ul>
+	</div>
+	
+<script>
+window.addEventListener( "load", function( event ) {
+	var link = document.createElement( "link" );
+	link.href = "https://s0.wp.com/wp-content/mu-plugins/actionbar/actionbar.css?v=20210915";
+	link.type = "text/css";
+	link.rel = "stylesheet";
+	document.head.appendChild( link );
+
+	var script = document.createElement( "script" );
+	script.src = "https://s0.wp.com/wp-content/mu-plugins/actionbar/actionbar.js?v=20220329";
+	script.defer = true;
+	document.body.appendChild( script );
+} );
+</script>
+
+	
+	<script type="text/javascript">
+		window.WPCOM_sharing_counts = {"https:\/\/blog.demofox.org\/2017\/01\/09\/raytracing-reflection-refraction-fresnel-total-internal-reflection-and-beers-law\/":7951};
+	</script>
+				<script crossorigin='anonymous' type='text/javascript' src='https://s0.wp.com/_static/??-eJzTLy/QTc7PK0nNK9EvyClNz8wr1i+uzCtJrMjITM/IAeKS1CJMEWP94uSizIISoOIM5/yiVL2sYh19yo1yKioFmldQADTOPtfW0MzQ1MTczNLYKAsAjy0/rA=='></script>
+<script type='text/javascript'>
+	(function(){
+		var corecss = document.createElement('link');
+		var themecss = document.createElement('link');
+		var corecssurl = "https://s0.wp.com/wp-content/plugins/syntaxhighlighter/syntaxhighlighter3/styles/shCore.css?ver=3.0.9b";
+		if ( corecss.setAttribute ) {
+				corecss.setAttribute( "rel", "stylesheet" );
+				corecss.setAttribute( "type", "text/css" );
+				corecss.setAttribute( "href", corecssurl );
+		} else {
+				corecss.rel = "stylesheet";
+				corecss.href = corecssurl;
+		}
+		document.head.appendChild( corecss );
+		var themecssurl = "https://s0.wp.com/wp-content/plugins/syntaxhighlighter/syntaxhighlighter3/styles/shThemeDefault.css?m=1363304414h&amp;ver=3.0.9b";
+		if ( themecss.setAttribute ) {
+				themecss.setAttribute( "rel", "stylesheet" );
+				themecss.setAttribute( "type", "text/css" );
+				themecss.setAttribute( "href", themecssurl );
+		} else {
+				themecss.rel = "stylesheet";
+				themecss.href = themecssurl;
+		}
+		document.head.appendChild( themecss );
+	})();
+	SyntaxHighlighter.config.strings.expandSource = '+ expand source';
+	SyntaxHighlighter.config.strings.help = '?';
+	SyntaxHighlighter.config.strings.alert = 'SyntaxHighlighter\n\n';
+	SyntaxHighlighter.config.strings.noBrush = 'Can\'t find brush for: ';
+	SyntaxHighlighter.config.strings.brushNotHtmlScript = 'Brush wasn\'t configured for html-script option: ';
+	SyntaxHighlighter.defaults['pad-line-numbers'] = false;
+	SyntaxHighlighter.defaults['toolbar'] = false;
+	SyntaxHighlighter.all();
+
+	// Infinite scroll support
+	if ( typeof( jQuery ) !== 'undefined' ) {
+		jQuery( function( $ ) {
+			$( document.body ).on( 'post-load', function() {
+				SyntaxHighlighter.highlight();
+			} );
+		} );
+	}
+</script>
+<script id='comment-like-js-extra'>
+var comment_like_text = {"loading":"Loading...","swipeUrl":"https:\/\/s0.wp.com\/wp-content\/mu-plugins\/comment-likes\/js\/lib\/swipe.js?ver=20131008"};
+</script>
+<script id='sharing-js-js-extra'>
+var sharing_js_options = {"lang":"en","counts":"1","is_stats_active":"1"};
+</script>
+<script crossorigin='anonymous' type='text/javascript' src='https://s0.wp.com/_static/??-eJx9zdEKwjAMBdAfsgaZCnsQvyVr49au6WrTOv17KyKMCXtKSO7hwhyVnkKmkMEJGHpYTfG5d7KDxYuLir70Ngh4O5LAvVChAYPxlDbCemKuJ/VFbnVYwzwQ11gsHczWkH99hDB6ryoqGz1o2AbVYQJGyZTqpnJCPf51LFCcJKubR5tABkw29L9Z0ZUvh/OpbZq2PTbuDVZtbaM='></script>
+<script type='text/javascript'>
+var windowOpen;
+			( function () {
+				function matches( el, sel ) {
+					return !! (
+						el.matches && el.matches( sel ) ||
+						el.msMatchesSelector && el.msMatchesSelector( sel )
+					);
+				}
+
+				document.body.addEventListener( 'click', function ( event ) {
+					if ( ! event.target ) {
+						return;
+					}
+
+					var el;
+					if ( matches( event.target, 'a.share-twitter' ) ) {
+						el = event.target;
+					} else if ( event.target.parentNode && matches( event.target.parentNode, 'a.share-twitter' ) ) {
+						el = event.target.parentNode;
+					}
+
+					if ( el ) {
+						event.preventDefault();
+
+						// If there's another sharing window open, close it.
+						if ( typeof windowOpen !== 'undefined' ) {
+							windowOpen.close();
+						}
+						windowOpen = window.open( el.getAttribute( 'href' ), 'wpcomtwitter', 'menubar=1,resizable=1,width=600,height=350' );
+						return false;
+					}
+				} );
+			} )();
+var windowOpen;
+			( function () {
+				function matches( el, sel ) {
+					return !! (
+						el.matches && el.matches( sel ) ||
+						el.msMatchesSelector && el.msMatchesSelector( sel )
+					);
+				}
+
+				document.body.addEventListener( 'click', function ( event ) {
+					if ( ! event.target ) {
+						return;
+					}
+
+					var el;
+					if ( matches( event.target, 'a.share-facebook' ) ) {
+						el = event.target;
+					} else if ( event.target.parentNode && matches( event.target.parentNode, 'a.share-facebook' ) ) {
+						el = event.target.parentNode;
+					}
+
+					if ( el ) {
+						event.preventDefault();
+
+						// If there's another sharing window open, close it.
+						if ( typeof windowOpen !== 'undefined' ) {
+							windowOpen.close();
+						}
+						windowOpen = window.open( el.getAttribute( 'href' ), 'wpcomfacebook', 'menubar=1,resizable=1,width=600,height=400' );
+						return false;
+					}
+				} );
+			} )();
+</script>
+<script type="text/javascript">
+// <![CDATA[
+(function() {
+try{
+  if ( window.external &&'msIsSiteMode' in window.external) {
+    if (window.external.msIsSiteMode()) {
+      var jl = document.createElement('script');
+      jl.type='text/javascript';
+      jl.async=true;
+      jl.src='/wp-content/plugins/ie-sitemode/custom-jumplist.php';
+      var s = document.getElementsByTagName('script')[0];
+      s.parentNode.insertBefore(jl, s);
+    }
+  }
+}catch(e){}
+})();
+// ]]>
+</script>	<iframe src='https://widgets.wp.com/likes/master.html?ver=20220105#ver=20220105&amp;origin=https://blog.demofox.org' scrolling='no' id='likes-master' name='likes-master' style='display:none;'></iframe>
+	<div id='likes-other-gravatars'>
+		<div class="likes-text">
+			<span>%d</span> bloggers like this:		</div>
+		<ul class="wpl-avatars sd-like-gravatars"></ul>
+	</div>
+
+		<script src="//stats.wp.com/w.js?63" defer></script> <script type="text/javascript">
+_tkq = window._tkq || [];
+_stq = window._stq || [];
+_tkq.push(['storeContext', {'blog_id':'129449992','blog_tz':'-8','user_lang':'en','blog_lang':'en','user_id':'0'}]);
+_stq.push(['view', {'blog':'129449992','v':'wpcom','tz':'-8','user_id':'0','post':'7951','subd':'demofox2'}]);
+_stq.push(['extra', {'crypt':'UE40eW5QN0p8M2Y/RE1mNzc2NTVTamdsd0xoLz9RQkM2K298TXY9bERQMXc2MjhEaVZfb2wwakRoSj0mUkp1THptM1NdbkV1WjZIcU9mVWQmPUIvMlN6Jk8wW3NYVEJ3dWZOWExuWD8zd3hOJSZnaHE9NWhKMC9nJllrVG8lPUlKQnZOOUpiaTBoYW9SLlszSHxNRDhWWG1GX01+MC03W3oxYkZdZnB5ZzZOMTAtU3lKMGtTMVBBdiU2bCsyVUwvN0xmSWcxPUl5L1tCaDNVUmsrd3hJUXZ2WV8va051azBlXXdJaHwsa3pfNkdNRHk/LH5OeGFCelFxdmQ/ZmxuLExzeitdTzEwSi5ySWR8PWRdRG4xV1V4aGclTTFXS3FZciYxZU0vTWd5V2NjQzlxTHB6OUtaN2h8NzVDdWQsWkdKYw=='}]);
+_stq.push([ 'clickTrackerInit', '129449992', '7951' ]);
+	</script>
+<noscript><img src="https://pixel.wp.com/b.gif?v=noscript" style="height:1px;width:1px;overflow:hidden;position:absolute;bottom:1px;" alt="" /></noscript>
+<script>
+if ( 'object' === typeof wpcom_mobile_user_agent_info ) {
+
+	wpcom_mobile_user_agent_info.init();
+	var mobileStatsQueryString = "";
+	
+	if( false !== wpcom_mobile_user_agent_info.matchedPlatformName )
+		mobileStatsQueryString += "&x_" + 'mobile_platforms' + '=' + wpcom_mobile_user_agent_info.matchedPlatformName;
+	
+	if( false !== wpcom_mobile_user_agent_info.matchedUserAgentName )
+		mobileStatsQueryString += "&x_" + 'mobile_devices' + '=' + wpcom_mobile_user_agent_info.matchedUserAgentName;
+	
+	if( wpcom_mobile_user_agent_info.isIPad() )
+		mobileStatsQueryString += "&x_" + 'ipad_views' + '=' + 'views';
+
+	if( "" != mobileStatsQueryString ) {
+		new Image().src = document.location.protocol + '//pixel.wp.com/g.gif?v=wpcom-no-pv' + mobileStatsQueryString + '&baba=' + Math.random();
+	}
+	
+}
+</script>
+</body>
+</html>
